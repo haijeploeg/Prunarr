@@ -1,0 +1,15 @@
+[project]
+name = "cleanarr"
+version = "0.1.0"
+description = "CLI tool to cleanup movies and TV shows in Radarr and Sonarr based on watched status"
+authors = [{ name = "Haije Ploeg", email = "ploeg.haije@gmail.com" }]
+dependencies = [
+    "typer",
+    "pydantic",
+    "pyyaml",
+    "requests",
+    "pyarr"
+]
+
+[project.scripts]
+cleanarr = "cleanarr.cli:app"
