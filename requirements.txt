@@ -1,1 +1,6 @@
 pyarr
+rich
+typer
+requests
+pydantic
+pyyaml

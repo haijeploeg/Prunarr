@@ -1,0 +1,23 @@
+[flake8]
+max-line-length = 100
+select = E,W,F,C,N
+ignore =
+    E203,  # whitespace before ':'
+    W503,  # line break before binary operator
+    E501,  # line too long (handled by black)
+    F401,  # imported but unused (handled by isort/mypy)
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    build,
+    dist,
+    *.egg-info,
+    .pytest_cache,
+    htmlcov
+per-file-ignores =
+    __init__.py:F401
+    tests/*:F401,F811,F841
+    conftest.py:F401
+max-complexity = 10
+docstring-convention = google

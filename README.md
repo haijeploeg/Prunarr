@@ -1,10 +1,10 @@
-# CleanArr
+# PrunArr
 
-A Python CLI tool to automatically cleanup movies and TV shows in Radarr and Sonarr based on watched status from Tautulli.
+A Python CLI tool to automatically prune movies and TV shows in Radarr and Sonarr based on watched status from Tautulli.
 
 ## Purpose
 
-CleanArr helps you maintain clean media libraries by automatically removing content that has been watched for a configurable period. It integrates with:
+PrunArr helps you maintain clean media libraries by automatically removing content that has been watched for a configurable period. It integrates with:
 
 - **Radarr/Sonarr**: For managing your media library
 - **Tautulli**: For tracking what content has been watched and by whom
@@ -13,12 +13,17 @@ The tool uses a user tag system to track who requested specific content and only
 
 ## Features
 
-- 🎬 **Movie Management**: List and remove watched movies from Radarr
-- 📺 **TV Series Management**: List and remove watched TV shows from Sonarr
-- 📊 **Watch History**: View detailed watch history from Tautulli
+- 🎬 **Movie Management**: List and remove watched movies from Radarr with file size tracking
+- 📺 **TV Series Management**: List and remove watched TV shows from Sonarr with episode-level details
+- 📊 **Watch History**: View detailed watch history from Tautulli with comprehensive filtering
 - 👤 **User-based Tracking**: Uses tag system to track who requested what content
 - ⏰ **Configurable Retention**: Set custom delay before removing watched content
 - 🔧 **Flexible Configuration**: Support for YAML config files and environment variables
+- 📏 **File Size Tracking**: Display file sizes for individual episodes, seasons, and entire series
+- 📈 **Progress Tracking**: Show completion percentages and detailed episode statistics
+- 🎯 **Advanced Filtering**: Filter by user, series title, season, watch status, and more
+- 🔍 **Debug Logging**: Comprehensive logging system with timestamps and styled output
+- 🚀 **Professional Architecture**: Fully documented codebase with type hints and robust error handling
 
 ## Installation
 
@@ -34,7 +39,7 @@ The tool uses a user tag system to track who requested specific content and only
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd cleanarr
+cd prunarr
 ```
 
 2. Create a virtual environment:
@@ -50,7 +55,7 @@ pip install -e .
 
 ## Configuration
 
-CleanArr supports multiple configuration methods:
+PrunArr supports multiple configuration methods:
 
 ### 1. YAML Configuration File
 
@@ -80,13 +85,15 @@ export DAYS_BEFORE_REMOVAL=60
 |---------|-------------|---------|
 | `radarr_api_key` | API key for Radarr | Required |
 | `radarr_url` | Radarr server URL | Required |
+| `sonarr_api_key` | API key for Sonarr | Required |
+| `sonarr_url` | Sonarr server URL | Required |
 | `tautulli_api_key` | API key for Tautulli | Required |
 | `tautulli_url` | Tautulli server URL | Required |
-| `days_before_removal` | Days to wait after watching before removal | 60 |
+| `user_tag_regex` | Regex pattern for user tags | `^\d+ - (.+)$` |
 
 ## User Tag System
 
-CleanArr uses a specific tag format in Radarr to track who requested content:
+PrunArr uses a specific tag format in Radarr to track who requested content:
 
 **Tag Format**: `"userid - username"`
 
@@ -102,45 +109,87 @@ Example: `"123 - john_doe"`
 
 ```bash
 # Show help
-cleanarr --help
+prunarr --help
 
 # Use custom config file
-cleanarr --config /path/to/config.yaml <command>
+prunarr --config /path/to/config.yaml <command>
 ```
 
 ### Movie Management
 
 ```bash
-# List all requested movies
-cleanarr movies list
+# List all requested movies with file sizes
+prunarr movies list
 
 # List movies requested by specific user(s)
-cleanarr movies list --user john_doe --user jane_doe
+prunarr movies list --user john_doe --user jane_doe
+
+# List only watched movies
+prunarr movies list --watched
 
 # Remove watched movies (after configured days)
-cleanarr movies remove
+prunarr movies remove
 ```
 
 ### TV Series Management
 
 ```bash
-# List all requested series
-cleanarr series list
+# List all requested series with episode counts and file sizes
+prunarr series list
+
+# List series for specific user
+prunarr series list --username john_doe
+
+# List fully watched series only
+prunarr series list --watched
+
+# List partially watched series
+prunarr series list --partially-watched
+
+# Filter by series title and season
+prunarr series list --series "Breaking Bad" --season 1
+
+# Get detailed series information with episode breakdown
+prunarr series get 123
 
 # Remove watched series
-cleanarr series remove
+prunarr series remove
 ```
 
 ### Watch History
 
 ```bash
-# Show watch history
-cleanarr history show
+# Show watch history with filtering options
+prunarr history show
+
+# Filter by username
+prunarr history show --username john_doe
+
+# Filter by media type
+prunarr history show --media-type movie
+
+# Show only watched items
+prunarr history show --watched-only
+
+# Limit results
+prunarr history show --limit 50
+```
+
+### Debug Mode
+
+For troubleshooting and detailed information:
+
+```bash
+# Enable debug logging for any command
+prunarr --debug series list
+
+# Debug with config file
+prunarr --debug --config config.yaml movies list
 ```
 
 ## How It Works
 
-1. **Discovery**: CleanArr scans your Radarr/Sonarr libraries for downloaded content with user tags
+1. **Discovery**: PrunArr scans your Radarr/Sonarr libraries for downloaded content with user tags
 2. **Matching**: It cross-references this content with Tautulli's watch history
 3. **Filtering**: Only content watched by the original requester (from tag) is considered for removal
 4. **Time Check**: Content is only removed after the configured `days_before_removal` period
@@ -150,22 +199,22 @@ cleanarr history show
 
 ### List Movies for Specific User
 ```bash
-cleanarr movies list --user john_doe
+prunarr movies list --user john_doe
 ```
 
 ### Remove Old Watched Content
 ```bash
 # Remove movies watched more than 60 days ago (default)
-cleanarr movies remove
+prunarr movies remove
 
 # Use custom config with different retention period
-cleanarr --config my-config.yaml movies remove
+prunarr --config my-config.yaml movies remove
 ```
 
 ### Check Configuration
 ```bash
 # This will validate your configuration
-cleanarr movies list
+prunarr movies list
 ```
 
 ## Development
@@ -177,17 +226,20 @@ python test.py
 
 ### Project Structure
 ```
-cleanarr/
-├── cleanarr/
-│   ├── cli.py              # Main CLI interface
-│   ├── cleanarr.py         # Core logic
-│   ├── config.py           # Configuration handling
-│   ├── radarr.py           # Radarr API client
-│   ├── tautulli.py         # Tautulli API client
+prunarr/
+├── prunarr/
+│   ├── cli.py              # Main CLI interface with Typer
+│   ├── main.py             # Application entry point
+│   ├── prunarr.py          # Core logic and orchestration
+│   ├── config.py           # Configuration handling with Pydantic
+│   ├── logger.py           # Rich-styled logging system
+│   ├── radarr.py           # Enhanced Radarr API client
+│   ├── sonarr.py           # Enhanced Sonarr API client
+│   ├── tautulli.py         # Advanced Tautulli API client
 │   └── commands/           # Command implementations
-│       ├── movies.py
-│       ├── series.py
-│       └── history.py
+│       ├── movies.py       # Movie management with file sizes
+│       ├── series.py       # Series management with episode tracking
+│       └── history.py      # Watch history analysis
 ├── pyproject.toml          # Project configuration
 └── README.md
 ```
@@ -208,11 +260,17 @@ cleanarr/
 
 ### Debug Mode
 
-For troubleshooting, you can run commands with increased verbosity or check the configuration:
+PrunArr includes comprehensive logging with timestamped, color-coded output:
 
 ```bash
-# Test connection by listing content
-cleanarr movies list
+# Enable debug logging for detailed troubleshooting
+prunarr --debug movies list
+
+# Debug output includes:
+# - API call details
+# - Configuration validation
+# - Data processing steps
+# - Error diagnostics
 ```
 
 ## Contributing

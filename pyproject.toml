@@ -1,15 +1,145 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "cleanarr"
-version = "0.1.0"
-description = "CLI tool to cleanup movies and TV shows in Radarr and Sonarr based on watched status"
+name = "prunarr"
+version = "2.0.0"
+description = "Automated media library cleanup for Radarr and Sonarr based on Tautulli watch status"
 authors = [{ name = "Haije Ploeg", email = "ploeg.haije@gmail.com" }]
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.9"
+keywords = ["radarr", "sonarr", "tautulli", "media", "automation", "cleanup"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Multimedia",
+]
 dependencies = [
-    "typer",
-    "pydantic",
-    "pyyaml",
-    "requests",
-    "pyarr"
+    "typer[all]>=0.9.0",
+    "rich>=13.7.0",
+    "pydantic>=2.5.0",
+    "pyyaml>=6.0.1",
+    "requests>=2.31.0",
+    "pyarr>=5.2.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.3",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "black>=23.11.0",
+    "isort>=5.12.0",
+    "flake8>=6.1.0",
+    "mypy>=1.7.1",
+    "bandit>=1.7.5",
+    "safety>=2.3.4",
+    "pre-commit>=3.6.0"
 ]
 
 [project.scripts]
-cleanarr = "cleanarr.cli:app"
+prunarr = "prunarr.main:main"
+
+[project.urls]
+Homepage = "https://github.com/hploeg/prunarr"
+Repository = "https://github.com/hploeg/prunarr"
+Documentation = "https://github.com/hploeg/prunarr#readme"
+"Bug Reports" = "https://github.com/hploeg/prunarr/issues"
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  \.eggs
+  | \.git
+  | \.mypy_cache
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+known_first_party = ["prunarr"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = ["pyarr.*", "yaml.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--verbose",
+    "--tb=short",
+    "--strict-markers",
+    "--cov=prunarr",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml",
+    "--cov-fail-under=80"
+]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow tests that might take longer to run",
+    "api: Tests that require API connections (mocked)",
+    "cli: CLI command tests"
+]
+filterwarnings = [
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning"
+]
+
+[tool.coverage.run]
+source = ["prunarr"]
+omit = [
+    "tests/*",
+    "*/__pycache__/*",
+    "*/.venv/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "@(abc\\.)?abstractmethod"
+]

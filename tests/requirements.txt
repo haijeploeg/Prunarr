@@ -1,0 +1,19 @@
+# Test dependencies for PrunArr
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-mock>=3.10.0
+pytest-asyncio>=0.21.0
+
+# For CLI testing
+pytest-typer>=0.0.3
+
+# For HTTP mocking
+responses>=0.23.0
+requests-mock>=1.10.0
+
+# For test fixtures and utilities
+factory-boy>=3.2.0
+faker>=18.0.0
+
+# For coverage reporting
+coverage>=7.0.0
