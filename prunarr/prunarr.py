@@ -15,9 +15,10 @@ The PrunArr class serves as the central coordinator for:
 """
 
 from __future__ import annotations
-from typing import Any, Dict, List, Optional
+
 import re
 from datetime import datetime, timedelta
+from typing import Any, Dict, List, Optional
 
 from prunarr.config import Settings
 from prunarr.radarr import RadarrAPI
@@ -168,25 +169,25 @@ class PrunArr:
             if not include_untagged and not username:
                 continue
 
-            result.append({
-                "id": movie.get("id"),
-                "title": movie.get("title"),
-                "year": movie.get("year"),
-                "imdb_id": movie.get("imdbId"),
-                "user": username,
-                "has_file": bool(movie_file),
-                "file_size": movie_file.get("size", 0) if movie_file else 0,
-                "added": movie.get("added"),
-                "monitored": movie.get("monitored", False),
-                "tags": tag_ids,
-            })
+            result.append(
+                {
+                    "id": movie.get("id"),
+                    "title": movie.get("title"),
+                    "year": movie.get("year"),
+                    "imdb_id": movie.get("imdbId"),
+                    "user": username,
+                    "has_file": bool(movie_file),
+                    "file_size": movie_file.get("size", 0) if movie_file else 0,
+                    "added": movie.get("added"),
+                    "monitored": movie.get("monitored", False),
+                    "tags": tag_ids,
+                }
+            )
 
         return result
 
     def get_movies_with_watch_status(
-        self,
-        include_untagged: bool = True,
-        username_filter: Optional[str] = None
+        self, include_untagged: bool = True, username_filter: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Get all movies with their watch status from Tautulli.
@@ -215,16 +216,15 @@ class PrunArr:
                     watched_at = record.get("watched_at")
 
                     if imdb_id not in watch_lookup:
-                        watch_lookup[imdb_id] = {
-                            "watchers": {},
-                            "most_recent_watch": watched_at
-                        }
+                        watch_lookup[imdb_id] = {"watchers": {}, "most_recent_watch": watched_at}
 
                     # Track each user's most recent watch of this movie
-                    if user not in watch_lookup[imdb_id]["watchers"] or int(watched_at) > int(watch_lookup[imdb_id]["watchers"][user]["watched_at"]):
+                    if user not in watch_lookup[imdb_id]["watchers"] or int(watched_at) > int(
+                        watch_lookup[imdb_id]["watchers"][user]["watched_at"]
+                    ):
                         watch_lookup[imdb_id]["watchers"][user] = {
                             "watched_at": watched_at,
-                            "watched_status": "watched"
+                            "watched_status": "watched",
                         }
 
                     # Update overall most recent watch time
@@ -301,14 +301,18 @@ class PrunArr:
 
         for movie in movies_with_status:
             # Only consider movies with user tags that were watched by the same user
-            if (movie.get("watch_status") == "watched" and
-                movie.get("days_since_watched") is not None and
-                movie.get("days_since_watched") >= days_watched):
+            if (
+                movie.get("watch_status") == "watched"
+                and movie.get("days_since_watched") is not None
+                and movie.get("days_since_watched") >= days_watched
+            ):
                 movies_to_remove.append(movie)
 
         return movies_to_remove
 
-    def get_movie_by_imdb_id(self, imdb_id: Optional[str], movies: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    def get_movie_by_imdb_id(
+        self, imdb_id: Optional[str], movies: List[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
         """Zoek in lijst van radarr-movies op imdb_id (tt...)."""
         if not imdb_id:
             return None
@@ -348,7 +352,9 @@ class PrunArr:
             if not radarr_details:
                 continue
 
-            if watched_by == radarr_details.get("user") and time_diff >= timedelta(days=days_before_removal):
+            if watched_by == radarr_details.get("user") and time_diff >= timedelta(
+                days=days_before_removal
+            ):
                 movies_to_delete.append(radarr_details)
 
         return movies_to_delete
@@ -383,23 +389,27 @@ class PrunArr:
             total_episodes = sum(season.get("totalEpisodeCount", 0) for season in seasons)
             downloaded_episodes = sum(season.get("episodeFileCount", 0) for season in seasons)
 
-            result.append({
-                "id": series.get("id"),
-                "title": series.get("title"),
-                "year": series.get("year"),
-                "tvdb_id": series.get("tvdbId"),
-                "imdb_id": series.get("imdbId"),
-                "user": username,
-                "has_file": downloaded_episodes > 0,
-                "total_episodes": total_episodes,
-                "downloaded_episodes": downloaded_episodes,
-                "added": series.get("added"),
-                "monitored": series.get("monitored", False),
-                "status": series.get("status"),
-                "seasons": seasons,
-                "tags": tag_ids,
-                "statistics": series.get("statistics", {}),  # Include statistics for episode counts
-            })
+            result.append(
+                {
+                    "id": series.get("id"),
+                    "title": series.get("title"),
+                    "year": series.get("year"),
+                    "tvdb_id": series.get("tvdbId"),
+                    "imdb_id": series.get("imdbId"),
+                    "user": username,
+                    "has_file": downloaded_episodes > 0,
+                    "total_episodes": total_episodes,
+                    "downloaded_episodes": downloaded_episodes,
+                    "added": series.get("added"),
+                    "monitored": series.get("monitored", False),
+                    "status": series.get("status"),
+                    "seasons": seasons,
+                    "tags": tag_ids,
+                    "statistics": series.get(
+                        "statistics", {}
+                    ),  # Include statistics for episode counts
+                }
+            )
 
         return result
 
@@ -409,7 +419,7 @@ class PrunArr:
         username_filter: Optional[str] = None,
         series_filter: Optional[str] = None,
         season_filter: Optional[int] = None,
-        debug: bool = False
+        debug: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Get all series with their watch status from Tautulli.
@@ -428,7 +438,9 @@ class PrunArr:
 
         # Apply series title filter
         if series_filter:
-            all_series = [s for s in all_series if series_filter.lower() in s.get("title", "").lower()]
+            all_series = [
+                s for s in all_series if series_filter.lower() in s.get("title", "").lower()
+            ]
 
         # Apply username filter
         if username_filter:
@@ -474,11 +486,13 @@ class PrunArr:
                         watch_lookup[series_key][episode_key] = {}
 
                     # Track each user's most recent watch of this episode
-                    if user not in watch_lookup[series_key][episode_key] or int(watched_at) > int(watch_lookup[series_key][episode_key][user]["watched_at"]):
+                    if user not in watch_lookup[series_key][episode_key] or int(watched_at) > int(
+                        watch_lookup[series_key][episode_key][user]["watched_at"]
+                    ):
                         watch_lookup[series_key][episode_key][user] = {
                             "watched_at": watched_at,
                             "season_num": season_num,
-                            "episode_num": episode_num
+                            "episode_num": episode_num,
                         }
 
         if debug:
@@ -496,7 +510,9 @@ class PrunArr:
             series_watch_info = watch_lookup.get(tvdb_id, {})
 
             if debug:
-                print(f"[DEBUG] Processing series: '{series_title}' (ID: {series_id}, TVDB: {tvdb_id})")
+                print(
+                    f"[DEBUG] Processing series: '{series_title}' (ID: {series_id}, TVDB: {tvdb_id})"
+                )
                 print(f"[DEBUG]   Watch info available: {len(series_watch_info)} episodes")
 
             # Use season data from series object instead of separate episode API call
@@ -505,7 +521,6 @@ class PrunArr:
                 print(f"[DEBUG]   Series seasons: {len(series_seasons)} seasons found")
 
             # Calculate watch statistics using season data and watch history
-            seasons_data = []
             total_watched_episodes = 0
 
             # Get episode counts from Sonarr statistics
@@ -519,8 +534,8 @@ class PrunArr:
             for episode_key, episode_watchers in series_watch_info.items():
                 # Parse season/episode from key like "s1e5"
                 try:
-                    season_num = int(episode_key.split('e')[0][1:])
-                    episode_num = int(episode_key.split('e')[1])
+                    season_num = int(episode_key.split("e")[0][1:])
+                    episode_num = int(episode_key.split("e")[1])
                 except (ValueError, IndexError):
                     continue
 
@@ -537,11 +552,17 @@ class PrunArr:
                     total_watched_episodes += 1
 
             # Create simplified seasons data based on available watch info
-            seasons_count = len(set(
-                int(ep_key.split('e')[0][1:])
-                for ep_key in series_watch_info.keys()
-                if ep_key.split('e')[0][1:].isdigit() and int(ep_key.split('e')[0][1:]) > 0
-            )) if series_watch_info else 0
+            seasons_count = (
+                len(
+                    set(
+                        int(ep_key.split("e")[0][1:])
+                        for ep_key in series_watch_info.keys()
+                        if ep_key.split("e")[0][1:].isdigit() and int(ep_key.split("e")[0][1:]) > 0
+                    )
+                )
+                if series_watch_info
+                else 0
+            )
 
             # Use the most accurate episode count available
             total_episodes_in_watch_history = len(series_watch_info)
@@ -558,7 +579,9 @@ class PrunArr:
                 print(f"[DEBUG]   Watched episodes: {total_watched_episodes}")
                 print(f"[DEBUG]   Total episodes (available/aired): {total_available_episodes}")
                 print(f"[DEBUG]   Total episodes (downloaded): {total_downloaded_episodes}")
-                print(f"[DEBUG]   Total episodes (from watch history): {total_episodes_in_watch_history}")
+                print(
+                    f"[DEBUG]   Total episodes (from watch history): {total_episodes_in_watch_history}"
+                )
                 print(f"[DEBUG]   Using total episodes: {actual_total_episodes}")
 
             # Determine overall watch status
@@ -587,27 +610,33 @@ class PrunArr:
 
             # Calculate total series filesize from all seasons
             seasons = series.get("seasons", [])
-            total_size_on_disk = sum(season.get("statistics", {}).get("sizeOnDisk", 0) for season in seasons)
+            total_size_on_disk = sum(
+                season.get("statistics", {}).get("sizeOnDisk", 0) for season in seasons
+            )
 
             # Update series data with actual episode counts and filesize
-            series_with_status.append({
-                **series,
-                "watch_status": watch_status,
-                "watched_episodes": total_watched_episodes,
-                "total_episodes": actual_total_episodes,
-                "completion_percentage": (total_watched_episodes / actual_total_episodes * 100) if actual_total_episodes > 0 else 0,
-                "most_recent_watch": most_recent_watch,
-                "days_since_watched": days_since_watched,
-                "seasons_count": seasons_count,
-                "total_size_on_disk": total_size_on_disk
-            })
+            series_with_status.append(
+                {
+                    **series,
+                    "watch_status": watch_status,
+                    "watched_episodes": total_watched_episodes,
+                    "total_episodes": actual_total_episodes,
+                    "completion_percentage": (
+                        (total_watched_episodes / actual_total_episodes * 100)
+                        if actual_total_episodes > 0
+                        else 0
+                    ),
+                    "most_recent_watch": most_recent_watch,
+                    "days_since_watched": days_since_watched,
+                    "seasons_count": seasons_count,
+                    "total_size_on_disk": total_size_on_disk,
+                }
+            )
 
         return series_with_status
 
     def get_series_ready_for_removal(
-        self,
-        days_watched: int,
-        removal_mode: str = "series"  # "series" or "season"
+        self, days_watched: int, removal_mode: str = "series"  # "series" or "season"
     ) -> List[Dict[str, Any]]:
         """
         Get series that are ready for removal based on watch criteria.
@@ -629,26 +658,29 @@ class PrunArr:
 
             if removal_mode == "series":
                 # Remove entire series if fully watched by requester and old enough
-                if (series.get("watch_status") == "fully_watched" and
-                    series.get("days_since_watched") is not None and
-                    series.get("days_since_watched") >= days_watched):
-                    items_to_remove.append({
-                        **series,
-                        "removal_type": "series"
-                    })
+                if (
+                    series.get("watch_status") == "fully_watched"
+                    and series.get("days_since_watched") is not None
+                    and series.get("days_since_watched") >= days_watched
+                ):
+                    items_to_remove.append({**series, "removal_type": "series"})
 
             elif removal_mode == "season":
                 # Remove individual seasons that are fully watched
                 for season_data in series.get("seasons_data", []):
-                    if (season_data.get("completion_percentage") == 100 and
-                        series.get("days_since_watched") is not None and
-                        series.get("days_since_watched") >= days_watched):
-                        items_to_remove.append({
-                            **series,
-                            "removal_type": "season",
-                            "season_number": season_data.get("season_number"),
-                            "season_data": season_data
-                        })
+                    if (
+                        season_data.get("completion_percentage") == 100
+                        and series.get("days_since_watched") is not None
+                        and series.get("days_since_watched") >= days_watched
+                    ):
+                        items_to_remove.append(
+                            {
+                                **series,
+                                "removal_type": "season",
+                                "season_number": season_data.get("season_number"),
+                                "season_data": season_data,
+                            }
+                        )
 
         return items_to_remove
 
@@ -694,7 +726,7 @@ class PrunArr:
         season_filter: Optional[int] = None,
         watched_only: bool = False,
         unwatched_only: bool = False,
-        show_all_watchers: bool = False
+        show_all_watchers: bool = False,
     ) -> Dict[str, Any]:
         """
         Get comprehensive detailed information about a series including episode-level watch data.
@@ -718,10 +750,7 @@ class PrunArr:
 
         # Get watch status data for this series
         series_with_status = self.get_series_with_watch_status(
-            include_untagged=True,
-            username_filter=None,
-            series_filter=None,
-            season_filter=None
+            include_untagged=True, username_filter=None, series_filter=None, season_filter=None
         )
 
         series_watch_data = next((s for s in series_with_status if s.get("id") == series_id), None)
@@ -750,18 +779,20 @@ class PrunArr:
                 if episode_key not in watch_lookup:
                     watch_lookup[episode_key] = {}
 
-                if user not in watch_lookup[episode_key] or int(watched_at) > int(watch_lookup[episode_key][user]["watched_at"]):
+                if user not in watch_lookup[episode_key] or int(watched_at) > int(
+                    watch_lookup[episode_key][user]["watched_at"]
+                ):
                     watch_lookup[episode_key][user] = {
                         "watched_at": watched_at,
                         "watched_date": datetime.fromtimestamp(int(watched_at)),
                         "season_num": season_num,
-                        "episode_num": episode_num
+                        "episode_num": episode_num,
                     }
 
         # Get episode info from series seasons metadata (this gives us ALL episodes, not just downloaded ones)
         seasons_metadata = series_info.get("seasons", [])
 
-        if hasattr(self, '_debug_logger'):
+        if hasattr(self, "_debug_logger"):
             self._debug_logger.debug(f"Series seasons metadata: {seasons_metadata}")
 
         # Build complete episode list from season metadata
@@ -769,12 +800,16 @@ class PrunArr:
         for season in seasons_metadata:
             season_num = season.get("seasonNumber", 0)
             # Try different field names for episode count
-            total_episode_count = (season.get("totalEpisodeCount", 0) or
-                                 season.get("episodeCount", 0) or
-                                 season.get("statistics", {}).get("totalEpisodeCount", 0))
+            total_episode_count = (
+                season.get("totalEpisodeCount", 0)
+                or season.get("episodeCount", 0)
+                or season.get("statistics", {}).get("totalEpisodeCount", 0)
+            )
 
-            if hasattr(self, '_debug_logger'):
-                self._debug_logger.debug(f"Season {season_num}: {total_episode_count} total episodes (season data: {season})")
+            if hasattr(self, "_debug_logger"):
+                self._debug_logger.debug(
+                    f"Season {season_num}: {total_episode_count} total episodes (season data: {season})"
+                )
 
             # Create episode entries for all episodes in this season
             episode_file_count = season.get("statistics", {}).get("episodeFileCount", 0)
@@ -786,14 +821,14 @@ class PrunArr:
                 has_file_estimated = ep_num <= episode_file_count
 
                 episode_metadata_lookup[episode_key] = {
-                    'season_number': season_num,
-                    'episode_number': ep_num,
-                    'title': f"Episode {ep_num}",  # Default title, we'll update if we have better data
-                    'air_date': '',
-                    'runtime': 0,
-                    'has_file': has_file_estimated,  # Estimate based on file count
-                    'monitored': season.get("monitored", False),
-                    'overview': '',
+                    "season_number": season_num,
+                    "episode_number": ep_num,
+                    "title": f"Episode {ep_num}",  # Default title, we'll update if we have better data
+                    "air_date": "",
+                    "runtime": 0,
+                    "has_file": has_file_estimated,  # Estimate based on file count
+                    "monitored": season.get("monitored", False),
+                    "overview": "",
                 }
 
         # Now get real episode details from Sonarr using the fixed wrapper method
@@ -801,61 +836,75 @@ class PrunArr:
             # Use the fixed wrapper method to get all episodes for this series
             all_episodes = self.sonarr.get_episodes_by_series_id(series_id)
 
-            if hasattr(self, '_debug_logger'):
-                self._debug_logger.debug(f"get_episodes_by_series_id returned {len(all_episodes)} episodes for series {series_id}")
+            if hasattr(self, "_debug_logger"):
+                self._debug_logger.debug(
+                    f"get_episodes_by_series_id returned {len(all_episodes)} episodes for series {series_id}"
+                )
                 if all_episodes:
                     self._debug_logger.debug(f"Sample episode: {all_episodes[0]}")
 
-            if hasattr(self, '_debug_logger'):
+            if hasattr(self, "_debug_logger"):
                 self._debug_logger.debug(f"Processing {len(all_episodes)} episodes from API")
                 if len(all_episodes) > 0:
                     self._debug_logger.debug(f"Sample episode data: {all_episodes[0]}")
 
             for ep in all_episodes:
                 if not isinstance(ep, dict):
-                    if hasattr(self, '_debug_logger'):
+                    if hasattr(self, "_debug_logger"):
                         self._debug_logger.debug(f"Skipping non-dict episode: {ep}")
                     continue
 
-                season_num = ep.get('seasonNumber', ep.get('season_number'))
-                episode_num = ep.get('episodeNumber', ep.get('episode_number'))
-                series_id_in_ep = ep.get('seriesId')
+                season_num = ep.get("seasonNumber", ep.get("season_number"))
+                episode_num = ep.get("episodeNumber", ep.get("episode_number"))
+                series_id_in_ep = ep.get("seriesId")
 
-                if hasattr(self, '_debug_logger'):
-                    self._debug_logger.debug(f"Episode: s{season_num}e{episode_num}, seriesId={series_id_in_ep}, title='{ep.get('title', 'N/A')}'")
+                if hasattr(self, "_debug_logger"):
+                    self._debug_logger.debug(
+                        f"Episode: s{season_num}e{episode_num}, seriesId={series_id_in_ep}, title='{ep.get('title', 'N/A')}'"
+                    )
 
                 # Only process episodes that belong to our series
                 if series_id_in_ep != series_id:
-                    if hasattr(self, '_debug_logger'):
-                        self._debug_logger.debug(f"Skipping episode from different series: {series_id_in_ep} != {series_id}")
+                    if hasattr(self, "_debug_logger"):
+                        self._debug_logger.debug(
+                            f"Skipping episode from different series: {series_id_in_ep} != {series_id}"
+                        )
                     continue
 
                 if season_num is not None and episode_num is not None:
                     episode_key = f"s{season_num}e{episode_num}"
                     if episode_key in episode_metadata_lookup:
                         # Update with real episode data from Sonarr
-                        episode_metadata_lookup[episode_key].update({
-                            'title': ep.get('title', f"Episode {episode_num}"),
-                            'air_date': ep.get('airDate', ep.get('air_date', '')),
-                            'runtime': ep.get('runtime', 0),
-                            'has_file': ep.get('hasFile', ep.get('has_file', False)),
-                            'episode_file_id': ep.get('episodeFileId'),
-                            'overview': ep.get('overview', ''),
-                            'monitored': ep.get('monitored', False),
-                        })
+                        episode_metadata_lookup[episode_key].update(
+                            {
+                                "title": ep.get("title", f"Episode {episode_num}"),
+                                "air_date": ep.get("airDate", ep.get("air_date", "")),
+                                "runtime": ep.get("runtime", 0),
+                                "has_file": ep.get("hasFile", ep.get("has_file", False)),
+                                "episode_file_id": ep.get("episodeFileId"),
+                                "overview": ep.get("overview", ""),
+                                "monitored": ep.get("monitored", False),
+                            }
+                        )
 
-                        if hasattr(self, '_debug_logger'):
-                            self._debug_logger.debug(f"Updated {episode_key}: title='{episode_metadata_lookup[episode_key]['title']}', has_file={episode_metadata_lookup[episode_key]['has_file']}")
+                        if hasattr(self, "_debug_logger"):
+                            self._debug_logger.debug(
+                                f"Updated {episode_key}: title='{episode_metadata_lookup[episode_key]['title']}', has_file={episode_metadata_lookup[episode_key]['has_file']}"
+                            )
                     else:
-                        if hasattr(self, '_debug_logger'):
-                            self._debug_logger.debug(f"Episode {episode_key} not in our lookup table")
+                        if hasattr(self, "_debug_logger"):
+                            self._debug_logger.debug(
+                                f"Episode {episode_key} not in our lookup table"
+                            )
 
         except Exception as e:
-            if hasattr(self, '_debug_logger'):
+            if hasattr(self, "_debug_logger"):
                 self._debug_logger.debug(f"Could not get episode details: {e}")
 
-        if hasattr(self, '_debug_logger'):
-            self._debug_logger.debug(f"Built complete episode lookup with {len(episode_metadata_lookup)} episodes")
+        if hasattr(self, "_debug_logger"):
+            self._debug_logger.debug(
+                f"Built complete episode lookup with {len(episode_metadata_lookup)} episodes"
+            )
 
         # Organize episodes by season - process ALL episodes from Sonarr, not just watched ones
         seasons_data = {}
@@ -866,8 +915,8 @@ class PrunArr:
         for episode_key, ep_metadata in episode_metadata_lookup.items():
             episode_watchers = watch_lookup.get(episode_key, {})
             # Extract season and episode numbers from ep_metadata directly
-            season_num = ep_metadata.get('season_number')
-            episode_num = ep_metadata.get('episode_number')
+            season_num = ep_metadata.get("season_number")
+            episode_num = ep_metadata.get("episode_number")
 
             if season_num is None or episode_num is None:
                 continue
@@ -912,13 +961,17 @@ class PrunArr:
                 "season_number": season_num,
                 "episode_number": episode_num,
                 "episode_key": episode_key,
-                "title": ep_metadata.get('title', 'Unknown Episode'),
-                "air_date": ep_metadata.get('air_date', ''),
-                "runtime": ep_metadata.get('runtime', 0),
-                "has_file": ep_metadata.get('has_file', False),
-                "episode_file_id": ep_metadata.get('episode_file_id'),
+                "title": ep_metadata.get("title", "Unknown Episode"),
+                "air_date": ep_metadata.get("air_date", ""),
+                "runtime": ep_metadata.get("runtime", 0),
+                "has_file": ep_metadata.get("has_file", False),
+                "episode_file_id": ep_metadata.get("episode_file_id"),
                 "watched": watched_by_user,
-                "watched_at": episode_watchers.get(series_user, {}).get('watched_at') if watched_by_user else None,
+                "watched_at": (
+                    episode_watchers.get(series_user, {}).get("watched_at")
+                    if watched_by_user
+                    else None
+                ),
                 "watched_by": series_user if watched_by_user else "",
                 "watch_status": watch_status,
                 "watched_by_user": watched_by_user,
@@ -926,7 +979,7 @@ class PrunArr:
                 "all_watchers": all_watchers,
                 "most_recent_watch": most_recent_watch,
                 "days_since_watched": days_since_watched,
-                "watchers_detail": episode_watchers if show_all_watchers else {}
+                "watchers_detail": episode_watchers if show_all_watchers else {},
             }
 
             # Add to seasons data
@@ -937,7 +990,7 @@ class PrunArr:
                     "watched_by_user": 0,
                     "watched_by_others": 0,
                     "unwatched": 0,
-                    "total_episodes": 0
+                    "total_episodes": 0,
                 }
 
             seasons_data[season_num]["episodes"].append(episode_detail)
@@ -964,6 +1017,6 @@ class PrunArr:
                 "season_filter": season_filter,
                 "watched_only": watched_only,
                 "unwatched_only": unwatched_only,
-                "show_all_watchers": show_all_watchers
-            }
+                "show_all_watchers": show_all_watchers,
+            },
         }

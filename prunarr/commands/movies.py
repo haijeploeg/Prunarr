@@ -5,18 +5,20 @@ This module provides commands for managing movies in Radarr,
 including listing with advanced filtering, watch status tracking, and removal capabilities.
 """
 
-import typer
-from typing import Optional, List, Dict, Any
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import typer
 from rich.console import Console
 from rich.table import Table
 
-from prunarr.prunarr import PrunArr
 from prunarr.config import Settings
 from prunarr.logger import get_logger
+from prunarr.prunarr import PrunArr
 
 console = Console()
 app = typer.Typer(help="Manage movies in Radarr.", rich_markup_mode="rich")
+
 
 def format_file_size(size_bytes: int) -> str:
     """
@@ -31,7 +33,7 @@ def format_file_size(size_bytes: int) -> str:
     if not size_bytes:
         return "N/A"
 
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
         if size_bytes < 1024.0:
             return f"{size_bytes:.1f} {unit}"
         size_bytes /= 1024.0
@@ -90,7 +92,7 @@ def parse_file_size(size_str: str) -> int:
     size_str = size_str.replace(" ", "").upper()
 
     # Parse number and unit
-    match = re.match(r'^(\d+(?:\.\d+)?)(B|KB|MB|GB|TB)$', size_str)
+    match = re.match(r"^(\d+(?:\.\d+)?)(B|KB|MB|GB|TB)$", size_str)
     if not match:
         raise ValueError(f"Invalid file size format: {size_str}")
 
@@ -99,17 +101,19 @@ def parse_file_size(size_str: str) -> int:
 
     # Convert to bytes
     multipliers = {
-        'B': 1,
-        'KB': 1024,
-        'MB': 1024 ** 2,
-        'GB': 1024 ** 3,
-        'TB': 1024 ** 4,
+        "B": 1,
+        "KB": 1024,
+        "MB": 1024**2,
+        "GB": 1024**3,
+        "TB": 1024**4,
     }
 
     return int(number * multipliers[unit])
 
 
-def sort_movies(movies: List[Dict[str, Any]], sort_by: str, desc: bool = False) -> List[Dict[str, Any]]:
+def sort_movies(
+    movies: List[Dict[str, Any]], sort_by: str, desc: bool = False
+) -> List[Dict[str, Any]]:
     """
     Sort movies by specified criteria.
 
@@ -121,6 +125,7 @@ def sort_movies(movies: List[Dict[str, Any]], sort_by: str, desc: bool = False) 
     Returns:
         Sorted list of movies
     """
+
     def get_sort_key(movie):
         if sort_by == "title":
             return movie.get("title", "").lower()
@@ -129,7 +134,7 @@ def sort_movies(movies: List[Dict[str, Any]], sort_by: str, desc: bool = False) 
             added = movie.get("added")
             if added:
                 try:
-                    return datetime.fromisoformat(added.replace('Z', '+00:00'))
+                    return datetime.fromisoformat(added.replace("Z", "+00:00"))
                 except (ValueError, AttributeError):
                     return datetime.min
             return datetime.min
@@ -165,7 +170,9 @@ def validate_and_parse_options(sort_by: str, min_filesize: Optional[str], logger
     # Validate sort_by parameter
     valid_sort_options = ["title", "date", "filesize", "watched_date", "days_watched"]
     if sort_by not in valid_sort_options:
-        logger.error(f"Invalid sort option: {sort_by}. Valid options: {', '.join(valid_sort_options)}")
+        logger.error(
+            f"Invalid sort option: {sort_by}. Valid options: {', '.join(valid_sort_options)}"
+        )
         raise typer.Exit(1)
 
     # Parse minimum file size if provided
@@ -188,7 +195,7 @@ def apply_movie_filters(
     days_watched: Optional[int] = None,
     min_filesize_bytes: Optional[int] = None,
     include_untagged: bool = True,
-    remove_mode: bool = False
+    remove_mode: bool = False,
 ) -> List[Dict[str, Any]]:
     """
     Apply filtering logic to movies list.
@@ -211,9 +218,11 @@ def apply_movie_filters(
     for movie in movies:
         # For remove mode, only consider movies watched by the correct user
         if remove_mode:
-            if (movie.get("watch_status") != "watched" or
-                movie.get("days_since_watched") is None or
-                (days_watched is not None and movie.get("days_since_watched") < days_watched)):
+            if (
+                movie.get("watch_status") != "watched"
+                or movie.get("days_since_watched") is None
+                or (days_watched is not None and movie.get("days_since_watched") < days_watched)
+            ):
                 continue
         else:
             # Watch status filtering for list mode (additive)
@@ -259,7 +268,7 @@ def create_debug_filter_info(
     include_untagged: bool = True,
     sort_by: str = "title",
     sort_desc: bool = False,
-    limit: Optional[int] = None
+    limit: Optional[int] = None,
 ) -> str:
     """
     Create debug information string about applied filters.
@@ -300,66 +309,40 @@ def create_debug_filter_info(
     if limit:
         filters.append(f"limit={limit}")
 
-    return ', '.join(filters) if filters else 'none'
+    return ", ".join(filters) if filters else "none"
 
 
 @app.command("list")
 def list_movies(
     ctx: typer.Context,
     username: Optional[str] = typer.Option(
-        None,
-        "--username",
-        "-u",
-        help="Filter by specific username"
+        None, "--username", "-u", help="Filter by specific username"
     ),
-    watched_only: bool = typer.Option(
-        False,
-        "--watched",
-        "-w",
-        help="Show only watched movies"
-    ),
-    unwatched_only: bool = typer.Option(
-        False,
-        "--unwatched",
-        help="Show only unwatched movies"
-    ),
+    watched_only: bool = typer.Option(False, "--watched", "-w", help="Show only watched movies"),
+    unwatched_only: bool = typer.Option(False, "--unwatched", help="Show only unwatched movies"),
     watched_by_other_only: bool = typer.Option(
         False,
         "--watched-by-other",
-        help="Show only movies watched by someone other than the requester"
+        help="Show only movies watched by someone other than the requester",
     ),
     include_untagged: bool = typer.Option(
-        True,
-        "--include-untagged/--exclude-untagged",
-        help="Include movies without user tags"
+        True, "--include-untagged/--exclude-untagged", help="Include movies without user tags"
     ),
     days_watched: Optional[int] = typer.Option(
-        None,
-        "--days-watched",
-        "-d",
-        help="Show movies watched more than X days ago"
+        None, "--days-watched", "-d", help="Show movies watched more than X days ago"
     ),
-    limit: Optional[int] = typer.Option(
-        None,
-        "--limit",
-        "-l",
-        help="Limit number of results"
-    ),
+    limit: Optional[int] = typer.Option(None, "--limit", "-l", help="Limit number of results"),
     sort_by: Optional[str] = typer.Option(
         "title",
         "--sort-by",
         "-s",
-        help="Sort by: title, date, filesize, watched_date (default: title)"
+        help="Sort by: title, date, filesize, watched_date (default: title)",
     ),
     sort_desc: bool = typer.Option(
-        False,
-        "--desc",
-        help="Sort in descending order (default: ascending)"
+        False, "--desc", help="Sort in descending order (default: ascending)"
     ),
     min_filesize: Optional[str] = typer.Option(
-        None,
-        "--min-filesize",
-        help="Minimum file size (e.g., '1GB', '500MB', '2.5GB')"
+        None, "--min-filesize", help="Minimum file size (e.g., '1GB', '500MB', '2.5GB')"
     ),
 ):
     """
@@ -434,8 +417,7 @@ def list_movies(
     try:
         # Get movies with watch status
         movies = prunarr.get_movies_with_watch_status(
-            include_untagged=include_untagged,
-            username_filter=username
+            include_untagged=include_untagged, username_filter=username
         )
 
         # Apply filtering using shared function
@@ -447,7 +429,7 @@ def list_movies(
             days_watched=days_watched,
             min_filesize_bytes=min_filesize_bytes,
             include_untagged=include_untagged,
-            remove_mode=False
+            remove_mode=False,
         )
 
         # Apply sorting
@@ -480,7 +462,11 @@ def list_movies(
             user_display = movie.get("user") or "[dim]Untagged[/dim]"
 
             # Format days since watched
-            days_ago = str(movie.get("days_since_watched", "")) if movie.get("days_since_watched") is not None else "N/A"
+            days_ago = (
+                str(movie.get("days_since_watched", ""))
+                if movie.get("days_since_watched") is not None
+                else "N/A"
+            )
 
             # Format watched by (handle multiple users)
             watched_by = movie.get("watched_by") or "N/A"
@@ -489,7 +475,7 @@ def list_movies(
             added_date = "N/A"
             if movie.get("added"):
                 try:
-                    added_dt = datetime.fromisoformat(movie.get("added").replace('Z', '+00:00'))
+                    added_dt = datetime.fromisoformat(movie.get("added").replace("Z", "+00:00"))
                     added_date = added_dt.strftime("%Y-%m-%d")
                 except (ValueError, AttributeError):
                     added_date = "N/A"
@@ -519,7 +505,7 @@ def list_movies(
                 include_untagged=include_untagged,
                 sort_by=sort_by,
                 sort_desc=sort_desc,
-                limit=limit
+                limit=limit,
             )
             logger.debug(f"Applied filters/sorting: {filter_info}")
 
@@ -527,58 +513,39 @@ def list_movies(
         logger.error(f"Failed to retrieve movies: {str(e)}")
         raise typer.Exit(1)
 
+
 @app.command("remove")
 def remove_movies(
     ctx: typer.Context,
     days_watched: int = typer.Option(
-        60,
-        "--days-watched",
-        "-d",
-        help="Remove movies watched more than X days ago (default: 60)"
+        60, "--days-watched", "-d", help="Remove movies watched more than X days ago (default: 60)"
     ),
     dry_run: bool = typer.Option(
-        False,
-        "--dry-run",
-        help="Show what would be removed without actually deleting"
+        False, "--dry-run", help="Show what would be removed without actually deleting"
     ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        "-f",
-        help="Skip confirmation prompts"
-    ),
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompts"),
     username: Optional[str] = typer.Option(
-        None,
-        "--username",
-        "-u",
-        help="Filter by specific username"
+        None, "--username", "-u", help="Filter by specific username"
     ),
     min_filesize: Optional[str] = typer.Option(
-        None,
-        "--min-filesize",
-        help="Minimum file size (e.g., '1GB', '500MB', '2.5GB')"
+        None, "--min-filesize", help="Minimum file size (e.g., '1GB', '500MB', '2.5GB')"
     ),
     sort_by: Optional[str] = typer.Option(
         "days_watched",
         "--sort-by",
         "-s",
-        help="Sort by: title, date, filesize, days_watched (default: days_watched)"
+        help="Sort by: title, date, filesize, days_watched (default: days_watched)",
     ),
     sort_desc: bool = typer.Option(
-        True,
-        "--sort-asc",
-        help="Sort in ascending order (default: descending for days_watched)"
+        True, "--sort-asc", help="Sort in ascending order (default: descending for days_watched)"
     ),
     limit: Optional[int] = typer.Option(
-        None,
-        "--limit",
-        "-l",
-        help="Limit number of movies to process"
+        None, "--limit", "-l", help="Limit number of movies to process"
     ),
     include_untagged: bool = typer.Option(
         False,
         "--include-untagged/--exclude-untagged",
-        help="Include movies without user tags (default: exclude untagged)"
+        help="Include movies without user tags (default: exclude untagged)",
     ),
 ):
     """
@@ -638,17 +605,16 @@ def remove_movies(
     sort_desc_actual = not sort_desc
 
     if dry_run:
-        logger.info(f"[DRY RUN] Finding movies for removal with filters...")
+        logger.info("[DRY RUN] Finding movies for removal with filters...")
     else:
-        logger.info(f"Finding movies for removal with filters...")
+        logger.info("Finding movies for removal with filters...")
 
     prunarr = PrunArr(settings)
 
     try:
         # Get all movies with watch status first
         all_movies = prunarr.get_movies_with_watch_status(
-            include_untagged=include_untagged,
-            username_filter=username
+            include_untagged=include_untagged, username_filter=username
         )
 
         # Apply filtering using shared function (remove mode)
@@ -657,7 +623,7 @@ def remove_movies(
             days_watched=days_watched,
             min_filesize_bytes=min_filesize_bytes,
             include_untagged=include_untagged,
-            remove_mode=True
+            remove_mode=True,
         )
 
         # Apply sorting
@@ -696,7 +662,9 @@ def remove_movies(
         console.print(table)
 
         if dry_run:
-            logger.info(f"[DRY RUN] Use without --dry-run to actually remove these {len(movies_to_remove)} movies")
+            logger.info(
+                f"[DRY RUN] Use without --dry-run to actually remove these {len(movies_to_remove)} movies"
+            )
             return
 
         # Log applied filters in debug mode
@@ -708,13 +676,15 @@ def remove_movies(
                 include_untagged=include_untagged,
                 sort_by=sort_by,
                 sort_desc=sort_desc_actual,
-                limit=limit
+                limit=limit,
             )
             logger.debug(f"Applied filters/sorting: {filter_info}")
 
         # Confirmation prompt (unless force is used)
         if not force:
-            console.print(f"\n[bold red]⚠️  WARNING: This will permanently delete {len(movies_to_remove)} movies and their files![/bold red]")
+            console.print(
+                f"\n[bold red]⚠️  WARNING: This will permanently delete {len(movies_to_remove)} movies and their files![/bold red]"
+            )
 
             # Show summary of applied filters
             filter_summary = []
@@ -752,7 +722,9 @@ def remove_movies(
             except Exception as e:
                 logger.error(f"Error removing {title}: {str(e)}")
 
-        logger.success(f"Successfully removed {removed_count} out of {len(movies_to_remove)} movies")
+        logger.success(
+            f"Successfully removed {removed_count} out of {len(movies_to_remove)} movies"
+        )
 
     except Exception as e:
         logger.error(f"Failed during movie removal process: {str(e)}")

@@ -13,8 +13,9 @@ The logging system is designed to provide:
 - Centralized logging configuration for the entire application
 """
 
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
 from rich.console import Console
 
 
@@ -67,7 +68,9 @@ class PrunArrLogger:
         """
         return datetime.now().strftime("%H:%M:%S")
 
-    def _format_message(self, level: str, icon: str, color: str, message: str, extra_detail: Optional[str] = None) -> str:
+    def _format_message(
+        self, level: str, icon: str, color: str, message: str, extra_detail: Optional[str] = None
+    ) -> str:
         """
         Format log message with consistent styling and optional details.
 
@@ -82,7 +85,9 @@ class PrunArrLogger:
             Formatted message string with Rich markup
         """
         timestamp = self._get_timestamp()
-        styled_msg = f"[dim][{timestamp}][/dim] - [{color}]{icon} {level.upper()}:[/{color}] {message}"
+        styled_msg = (
+            f"[dim][{timestamp}][/dim] - [{color}]{icon} {level.upper()}:[/{color}] {message}"
+        )
 
         if extra_detail:
             styled_msg += f"\n[dim]    {extra_detail}[/dim]"

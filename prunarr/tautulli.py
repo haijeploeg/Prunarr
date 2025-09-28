@@ -15,8 +15,10 @@ The TautulliAPI class provides:
 """
 
 from __future__ import annotations
+
 import re
 from typing import Any, Dict, List, Optional
+
 import requests
 
 # Compiled regex patterns for efficient ID extraction
@@ -419,7 +421,7 @@ class TautulliAPI:
                 if tvdb_id:
                     series_cache[str(series_key)] = tvdb_id
 
-            except Exception as e:
+            except Exception:
                 # Log error but continue with other series
                 continue
 

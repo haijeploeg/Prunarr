@@ -6,16 +6,17 @@ including listing with advanced filtering, watch status tracking, and removal ca
 Supports episode-level, season-level, and series-level tracking and filtering.
 """
 
-import typer
-from typing import Optional
 from datetime import datetime
-from rich.console import Console
-from rich.table import Table
-from rich.prompt import Confirm
+from typing import Optional
 
-from prunarr.prunarr import PrunArr
+import typer
+from rich.console import Console
+from rich.prompt import Confirm
+from rich.table import Table
+
 from prunarr.config import Settings
 from prunarr.logger import get_logger
+from prunarr.prunarr import PrunArr
 
 console = Console()
 app = typer.Typer(help="Manage TV shows in Sonarr.", rich_markup_mode="rich")
@@ -118,30 +119,20 @@ def format_file_size(size_bytes: int) -> str:
 @app.command("list")
 def list_series(
     ctx: typer.Context,
-    username: Optional[str] = typer.Option(
-        None, "--username", "-u", help="Filter by username"
-    ),
+    username: Optional[str] = typer.Option(None, "--username", "-u", help="Filter by username"),
     series_name: Optional[str] = typer.Option(
         None, "--series", "-s", help="Filter by series title (partial match)"
     ),
-    season: Optional[int] = typer.Option(
-        None, "--season", help="Filter by specific season number"
-    ),
-    watched: bool = typer.Option(
-        False, "--watched", "-w", help="Show only fully watched series"
-    ),
+    season: Optional[int] = typer.Option(None, "--season", help="Filter by specific season number"),
+    watched: bool = typer.Option(False, "--watched", "-w", help="Show only fully watched series"),
     partially_watched: bool = typer.Option(
         False, "--partially-watched", "-p", help="Show only partially watched series"
     ),
-    unwatched: bool = typer.Option(
-        False, "--unwatched", help="Show only unwatched series"
-    ),
+    unwatched: bool = typer.Option(False, "--unwatched", help="Show only unwatched series"),
     include_untagged: bool = typer.Option(
         True, "--include-untagged", help="Include series without user tags"
     ),
-    limit: Optional[int] = typer.Option(
-        None, "--limit", "-l", help="Limit number of results"
-    ),
+    limit: Optional[int] = typer.Option(None, "--limit", "-l", help="Limit number of results"),
 ):
     """
     [bold cyan]List TV series in Sonarr with advanced filtering options.[/bold cyan]
@@ -198,7 +189,7 @@ def list_series(
             username_filter=username,
             series_filter=series_name,
             season_filter=season,
-            debug=debug
+            debug=debug,
         )
 
         if not series_list:
@@ -258,8 +249,7 @@ def list_series(
                 str(series.get("user", "Untagged") if series.get("user") else "Untagged"),
                 format_watch_status(series.get("watch_status", "unknown")),
                 format_episode_count(
-                    series.get("watched_episodes", 0),
-                    series.get("total_episodes", 0)
+                    series.get("watched_episodes", 0), series.get("total_episodes", 0)
                 ),
                 format_completion_percentage(series.get("completion_percentage", 0)),
                 str(season_count),
@@ -291,15 +281,11 @@ def remove_series(
     removal_mode: str = typer.Option(
         "series", "--mode", "-m", help="Removal granularity: 'series' or 'season'"
     ),
-    username: Optional[str] = typer.Option(
-        None, "--username", "-u", help="Filter by username"
-    ),
+    username: Optional[str] = typer.Option(None, "--username", "-u", help="Filter by username"),
     series_name: Optional[str] = typer.Option(
         None, "--series", "-s", help="Filter by series title (partial match)"
     ),
-    season: Optional[int] = typer.Option(
-        None, "--season", help="Filter by specific season number"
-    ),
+    season: Optional[int] = typer.Option(None, "--season", help="Filter by specific season number"),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show what would be removed without actually removing"
     ),
@@ -360,8 +346,7 @@ def remove_series(
     try:
         # Get series ready for removal
         items_to_remove = prunarr.get_series_ready_for_removal(
-            days_watched=days_watched,
-            removal_mode=removal_mode
+            days_watched=days_watched, removal_mode=removal_mode
         )
 
         # Apply additional filters
@@ -370,14 +355,14 @@ def remove_series(
 
         if series_name:
             items_to_remove = [
-                item for item in items_to_remove
+                item
+                for item in items_to_remove
                 if series_name.lower() in item.get("title", "").lower()
             ]
 
         if season and removal_mode == "season":
             items_to_remove = [
-                item for item in items_to_remove
-                if item.get("season_number") == season
+                item for item in items_to_remove if item.get("season_number") == season
             ]
 
         if not items_to_remove:
@@ -404,8 +389,7 @@ def remove_series(
                     str(item.get("title", "N/A")),
                     str(item.get("user", "N/A")),
                     format_episode_count(
-                        item.get("watched_episodes", 0),
-                        item.get("total_episodes", 0)
+                        item.get("watched_episodes", 0), item.get("total_episodes", 0)
                     ),
                     format_completion_percentage(item.get("completion_percentage", 0)),
                     last_watched_str,
@@ -433,8 +417,7 @@ def remove_series(
                     str(item.get("season_number", "N/A")),
                     str(item.get("user", "N/A")),
                     format_episode_count(
-                        season_data.get("watched_by_user", 0),
-                        season_data.get("total_episodes", 0)
+                        season_data.get("watched_by_user", 0), season_data.get("total_episodes", 0)
                     ),
                     last_watched_str,
                     str(item.get("days_since_watched", "N/A")),
@@ -444,20 +427,28 @@ def remove_series(
 
         # Dry run mode - just show what would be removed
         if dry_run:
-            console.print(f"\n[bold yellow]🔍 DRY RUN:[/bold yellow] {len(items_to_remove)} {removal_mode}(s) would be removed")
+            console.print(
+                f"\n[bold yellow]🔍 DRY RUN:[/bold yellow] {len(items_to_remove)} {removal_mode}(s) would be removed"
+            )
             logger.info("Dry run completed - no actual removal performed")
             return
 
         # Confirmation prompts for actual removal
         if not auto_confirm:
-            console.print(f"\n[bold red]⚠️  WARNING:[/bold red] This will permanently delete {len(items_to_remove)} {removal_mode}(s) and their files!")
+            console.print(
+                f"\n[bold red]⚠️  WARNING:[/bold red] This will permanently delete {len(items_to_remove)} {removal_mode}(s) and their files!"
+            )
 
-            if not Confirm.ask(f"Do you want to proceed with removing these {len(items_to_remove)} {removal_mode}(s)?"):
+            if not Confirm.ask(
+                f"Do you want to proceed with removing these {len(items_to_remove)} {removal_mode}(s)?"
+            ):
                 logger.info("Removal cancelled by user")
                 return
 
             # Final confirmation for extra safety
-            if not Confirm.ask("[bold red]Are you absolutely sure? This cannot be undone![/bold red]"):
+            if not Confirm.ask(
+                "[bold red]Are you absolutely sure? This cannot be undone![/bold red]"
+            ):
                 logger.info("Removal cancelled by user at final confirmation")
                 return
 
@@ -481,7 +472,9 @@ def remove_series(
                 else:  # season mode
                     # Note: Sonarr doesn't have direct season deletion, this would need custom implementation
                     # For now, we'll log that this feature needs implementation
-                    logger.warning(f"Season-level removal not yet implemented for: {title} Season {item.get('season_number')}")
+                    logger.warning(
+                        f"Season-level removal not yet implemented for: {title} Season {item.get('season_number')}"
+                    )
                     failed_count += 1
 
             except Exception as e:
@@ -589,7 +582,7 @@ def get_series_details(
             console.print(f"[yellow]⚠️  Multiple series found matching '{identifier}':[/yellow]")
             for i, series in enumerate(series_matches[:5], 1):
                 console.print(f"  {i}. {series['title']} ({series['year']}) - ID: {series['id']}")
-            console.print(f"[dim]Please use a more specific title or the series ID.[/dim]")
+            console.print("[dim]Please use a more specific title or the series ID.[/dim]")
             raise typer.Exit(1)
 
         series_data = series_matches[0]
@@ -604,37 +597,43 @@ def get_series_details(
             season_filter=season_filter,
             watched_only=watched_only,
             unwatched_only=unwatched_only,
-            show_all_watchers=show_all_watchers
+            show_all_watchers=show_all_watchers,
         )
 
         if not detailed_info:
-            console.print(f"[red]❌ Could not retrieve detailed information for series: {series_title}[/red]")
+            console.print(
+                f"[red]❌ Could not retrieve detailed information for series: {series_title}[/red]"
+            )
             raise typer.Exit(1)
 
         # Extract data from the nested structure
-        series_info = detailed_info.get('series_info', {})
-        series_watch_data = detailed_info.get('series_watch_data', {})
-        seasons_data = detailed_info.get('seasons_data', {})
+        series_info = detailed_info.get("series_info", {})
+        series_watch_data = detailed_info.get("series_watch_data", {})
+        seasons_data = detailed_info.get("seasons_data", {})
 
         # Display series header information
         console.print(f"\n[bold cyan]📺 {series_info.get('title', 'Unknown Title')}[/bold cyan]")
-        if series_info.get('year'):
+        if series_info.get("year"):
             console.print(f"[dim]Released: {series_info['year']}[/dim]")
 
-        if series_watch_data.get('user'):
+        if series_watch_data.get("user"):
             console.print(f"[blue]Requested by: {series_watch_data['user']}[/blue]")
 
         # Show series-level statistics
-        total_episodes = detailed_info.get('total_episodes', 0)
-        watched_episodes = series_watch_data.get('watched_episodes', 0)
-        total_seasons = detailed_info.get('total_seasons', 0)
+        total_episodes = detailed_info.get("total_episodes", 0)
+        watched_episodes = series_watch_data.get("watched_episodes", 0)
+        total_seasons = detailed_info.get("total_seasons", 0)
 
         console.print(f"[cyan]Seasons:[/cyan] {total_seasons}")
-        console.print(f"[cyan]Episodes:[/cyan] {format_episode_count(watched_episodes, total_episodes)}")
-        console.print(f"[cyan]Progress:[/cyan] {format_completion_percentage(series_watch_data.get('completion_percentage', 0))}")
+        console.print(
+            f"[cyan]Episodes:[/cyan] {format_episode_count(watched_episodes, total_episodes)}"
+        )
+        console.print(
+            f"[cyan]Progress:[/cyan] {format_completion_percentage(series_watch_data.get('completion_percentage', 0))}"
+        )
 
-        if series_watch_data.get('most_recent_watch'):
-            last_watched = series_watch_data['most_recent_watch'].strftime("%Y-%m-%d")
+        if series_watch_data.get("most_recent_watch"):
+            last_watched = series_watch_data["most_recent_watch"].strftime("%Y-%m-%d")
             console.print(f"[cyan]Last Watched:[/cyan] {last_watched}")
 
         # Get episode file data for filesize information
@@ -645,7 +644,7 @@ def get_series_details(
             file_id = file_data.get("id")
             if file_id:
                 episode_file_map[file_id] = file_data
-                total_series_size += file_data.get('size', 0)
+                total_series_size += file_data.get("size", 0)
 
         # Display total series filesize
         if total_series_size > 0:
@@ -658,10 +657,10 @@ def get_series_details(
             return
 
         for season_data in seasons:
-            season_num = season_data.get('season_number')
-            season_episodes = season_data.get('episodes', [])
-            season_watched = season_data.get('watched_by_user', 0)
-            season_total = season_data.get('total_episodes', 0)
+            season_num = season_data.get("season_number")
+            season_episodes = season_data.get("episodes", [])
+            season_watched = season_data.get("watched_by_user", 0)
+            season_total = season_data.get("total_episodes", 0)
 
             # Skip season if it doesn't match filter
             if season_filter is not None and season_num != season_filter:
@@ -673,16 +672,18 @@ def get_series_details(
             # Calculate total season filesize
             season_total_size = 0
             for episode in season_episodes:
-                episode_file_id = episode.get('episode_file_id')
+                episode_file_id = episode.get("episode_file_id")
                 if episode_file_id and episode_file_id in episode_file_map:
                     file_data = episode_file_map[episode_file_id]
-                    season_total_size += file_data.get('size', 0)
+                    season_total_size += file_data.get("size", 0)
 
             # Season header with total size
             season_size_str = format_file_size(season_total_size) if season_total_size > 0 else ""
             size_display = f" - {season_size_str}" if season_size_str else ""
-            console.print(f"\n[bold magenta]Season {season_num}[/bold magenta] "
-                         f"({format_episode_count(season_watched, season_total)}){size_display}")
+            console.print(
+                f"\n[bold magenta]Season {season_num}[/bold magenta] "
+                f"({format_episode_count(season_watched, season_total)}){size_display}"
+            )
 
             # Create episodes table with forced width to show all columns
             table = Table(show_header=True, header_style="bold cyan", expand=False)
@@ -696,15 +697,15 @@ def get_series_details(
             table.add_column("User", style="blue", width=10)
 
             for episode in season_episodes:
-                episode_num = episode.get('episode_number', 'N/A')
-                title = episode.get('title', 'No Title')
-                air_date = episode.get('air_date', '')
-                runtime = episode.get('runtime', 0)
-                has_file = episode.get('has_file', False)
-                watched = episode.get('watched', False)
-                watched_at = episode.get('watched_at')
-                watched_by = episode.get('watched_by', '')
-                episode_file_id = episode.get('episode_file_id')
+                episode_num = episode.get("episode_number", "N/A")
+                title = episode.get("title", "No Title")
+                air_date = episode.get("air_date", "")
+                runtime = episode.get("runtime", 0)
+                has_file = episode.get("has_file", False)
+                watched = episode.get("watched", False)
+                watched_at = episode.get("watched_at")
+                watched_by = episode.get("watched_by", "")
+                episode_file_id = episode.get("episode_file_id")
 
                 # Apply filtering
                 if watched_only and not watched:
@@ -731,7 +732,7 @@ def get_series_details(
                 episode_size = 0
                 if episode_file_id and episode_file_id in episode_file_map:
                     file_data = episode_file_map[episode_file_id]
-                    episode_size = file_data.get('size', 0)
+                    episode_size = file_data.get("size", 0)
 
                 size_str = format_file_size(episode_size) if episode_size > 0 else "-"
 
@@ -754,21 +755,25 @@ def get_series_details(
                     status,
                     size_str,
                     watched_date,
-                    user_display
+                    user_display,
                 )
 
             console.print(table)
 
         # Show summary statistics
-        console.print(f"\n[bold cyan]Summary:[/bold cyan]")
+        console.print("\n[bold cyan]Summary:[/bold cyan]")
         if season_filter is not None:
-            filtered_seasons = [s for s in seasons if s.get('season_number') == season_filter]
+            filtered_seasons = [s for s in seasons if s.get("season_number") == season_filter]
             if filtered_seasons:
                 season = filtered_seasons[0]
-                console.print(f"Season {season_filter}: {format_episode_count(season.get('watched_episodes', 0), season.get('total_episodes', 0))}")
+                console.print(
+                    f"Season {season_filter}: {format_episode_count(season.get('watched_episodes', 0), season.get('total_episodes', 0))}"
+                )
         else:
-            console.print(f"Total Progress: {format_episode_count(watched_episodes, total_episodes)} "
-                         f"({format_completion_percentage(series_watch_data.get('completion_percentage', 0))})")
+            console.print(
+                f"Total Progress: {format_episode_count(watched_episodes, total_episodes)} "
+                f"({format_completion_percentage(series_watch_data.get('completion_percentage', 0))})"
+            )
 
         # Log applied filters in debug mode
         if debug:

@@ -5,15 +5,16 @@ This module provides commands for managing and viewing Tautulli watch history,
 including filtering, sorting, and detailed record inspection.
 """
 
-import typer
-from typing import Optional
 from datetime import datetime
-from rich.table import Table
-from rich.console import Console
+from typing import Optional
 
-from prunarr.prunarr import PrunArr
+import typer
+from rich.console import Console
+from rich.table import Table
+
 from prunarr.config import Settings
 from prunarr.logger import get_logger
+from prunarr.prunarr import PrunArr
 
 app = typer.Typer(help="Manage Tautulli history.", rich_markup_mode="rich")
 console = Console()
@@ -85,9 +86,7 @@ def list_history(
     watched_only: bool = typer.Option(
         False, "--watched", "-w", help="Show only fully watched items"
     ),
-    username: Optional[str] = typer.Option(
-        None, "--username", "-u", help="Filter by username"
-    ),
+    username: Optional[str] = typer.Option(None, "--username", "-u", help="Filter by username"),
     media_type: Optional[str] = typer.Option(
         None,
         "--media-type",
@@ -166,9 +165,7 @@ def list_history(
         # Populate table with history data
         for record in history:
             progress = (
-                f"{record.get('percent_complete', 0)}%"
-                if record.get("percent_complete")
-                else "N/A"
+                f"{record.get('percent_complete', 0)}%" if record.get("percent_complete") else "N/A"
             )
 
             table.add_row(
@@ -310,38 +307,26 @@ def get_history_details(
 
         # Process and display list-type metadata
         if details.get("genres"):
-            genres = [
-                g.get("tag", "")
-                for g in details.get("genres", [])
-                if isinstance(g, dict)
-            ]
+            genres = [g.get("tag", "") for g in details.get("genres", []) if isinstance(g, dict)]
             if genres:
                 table.add_row("Genres", ", ".join(genres))
 
         if details.get("directors"):
             directors = [
-                d.get("tag", "")
-                for d in details.get("directors", [])
-                if isinstance(d, dict)
+                d.get("tag", "") for d in details.get("directors", []) if isinstance(d, dict)
             ]
             if directors:
                 table.add_row("Directors", ", ".join(directors))
 
         if details.get("writers"):
-            writers = [
-                w.get("tag", "")
-                for w in details.get("writers", [])
-                if isinstance(w, dict)
-            ]
+            writers = [w.get("tag", "") for w in details.get("writers", []) if isinstance(w, dict)]
             if writers:
                 table.add_row("Writers", ", ".join(writers))
 
         if details.get("actors"):
             # Limit to first 5 actors to prevent overly long output
             actors = [
-                a.get("tag", "")
-                for a in details.get("actors", [])[:5]
-                if isinstance(a, dict)
+                a.get("tag", "") for a in details.get("actors", [])[:5] if isinstance(a, dict)
             ]
             if actors:
                 table.add_row("Top Actors", ", ".join(actors))

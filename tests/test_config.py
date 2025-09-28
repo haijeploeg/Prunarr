@@ -5,12 +5,13 @@ Tests configuration loading, validation, and error handling for both
 YAML file and environment variable configuration methods.
 """
 
-import pytest
 import os
 import tempfile
-import yaml
 from pathlib import Path
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open, patch
+
+import pytest
+import yaml
 from pydantic import ValidationError
 
 from prunarr.config import Settings, load_settings
@@ -28,7 +29,7 @@ class TestSettings:
             sonarr_url="http://localhost:8989",
             tautulli_api_key="test-tautulli-key",
             tautulli_url="http://localhost:8181",
-            user_tag_regex=r"^\d+ - (.+)$"
+            user_tag_regex=r"^\d+ - (.+)$",
         )
 
         assert settings.radarr_api_key == "test-radarr-key"
@@ -106,7 +107,7 @@ class TestSettings:
                 sonarr_url="http://localhost:8989",
                 tautulli_api_key="key",
                 tautulli_url="http://localhost:8181",
-                user_tag_regex="[invalid regex"
+                user_tag_regex="[invalid regex",
             )
 
         errors = exc_info.value.errors()
@@ -149,7 +150,7 @@ class TestLoadSettings:
             "SONARR_URL": "http://env:8989",
             "TAUTULLI_API_KEY": "env-tautulli-key",
             "TAUTULLI_URL": "http://env:8181",
-            "USER_TAG_REGEX": r"^\d+ - (.+)$"
+            "USER_TAG_REGEX": r"^\d+ - (.+)$",
         }
 
         with patch.dict(os.environ, env_vars, clear=True):
@@ -189,7 +190,7 @@ class TestLoadSettings:
 
     def test_invalid_yaml_file(self):
         """Test that malformed YAML files raise appropriate errors."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("invalid: yaml: content: [")
             temp_path = f.name
 
@@ -203,7 +204,7 @@ class TestLoadSettings:
 
     def test_empty_yaml_file(self):
         """Test that empty YAML files are handled gracefully."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("")
             temp_path = f.name
 
@@ -231,7 +232,7 @@ class TestLoadSettings:
             # Missing sonarr and tautulli config
         }
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump(partial_config, f)
             temp_path = f.name
 
@@ -266,8 +267,12 @@ class TestLoadSettings:
 
             errors = exc_info.value.errors()
             required_fields = [
-                "radarr_api_key", "radarr_url", "sonarr_api_key",
-                "sonarr_url", "tautulli_api_key", "tautulli_url"
+                "radarr_api_key",
+                "radarr_url",
+                "sonarr_api_key",
+                "sonarr_url",
+                "tautulli_api_key",
+                "tautulli_url",
             ]
 
             error_fields = [error["loc"][0] for error in errors]

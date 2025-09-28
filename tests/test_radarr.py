@@ -25,14 +25,14 @@ class TestRadarrAPI:
         api = RadarrAPI("http://localhost:7878/", "test-api-key")
         assert api.base_url == "http://localhost:7878"
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movie_all(self, mock_pyarr):
         """Test getting all movies."""
         mock_instance = Mock()
         mock_pyarr.return_value = mock_instance
         mock_instance.get_movie.return_value = [
             {"id": 1, "title": "Movie 1"},
-            {"id": 2, "title": "Movie 2"}
+            {"id": 2, "title": "Movie 2"},
         ]
 
         api = RadarrAPI("http://localhost:7878", "test-api-key")
@@ -42,7 +42,7 @@ class TestRadarrAPI:
         assert len(result) == 2
         assert result[0]["title"] == "Movie 1"
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movie_by_id(self, mock_pyarr):
         """Test getting a specific movie by ID."""
         mock_instance = Mock()
@@ -55,7 +55,7 @@ class TestRadarrAPI:
         mock_instance.get_movie.assert_called_once_with(1)
         assert result["title"] == "Specific Movie"
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movie_with_kwargs(self, mock_pyarr):
         """Test getting movies with additional parameters."""
         mock_instance = Mock()
@@ -68,7 +68,7 @@ class TestRadarrAPI:
         mock_instance.get_movie.assert_called_once_with(monitored=True)
         assert len(result) == 1
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_tag(self, mock_pyarr):
         """Test getting tag information."""
         mock_instance = Mock()
@@ -81,7 +81,7 @@ class TestRadarrAPI:
         mock_instance.get_tag.assert_called_once_with(5)
         assert result["label"] == "123 - testuser"
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_delete_movie_success(self, mock_pyarr):
         """Test successful movie deletion."""
         mock_instance = Mock()
@@ -91,12 +91,10 @@ class TestRadarrAPI:
         api = RadarrAPI("http://localhost:7878", "test-api-key")
         result = api.delete_movie(123)
 
-        mock_instance.del_movie.assert_called_once_with(
-            123, delete_files=True, add_exclusion=False
-        )
+        mock_instance.del_movie.assert_called_once_with(123, delete_files=True, add_exclusion=False)
         assert result is True
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_delete_movie_with_options(self, mock_pyarr):
         """Test movie deletion with custom options."""
         mock_instance = Mock()
@@ -106,12 +104,10 @@ class TestRadarrAPI:
         api = RadarrAPI("http://localhost:7878", "test-api-key")
         result = api.delete_movie(123, delete_files=False, add_exclusion=True)
 
-        mock_instance.del_movie.assert_called_once_with(
-            123, delete_files=False, add_exclusion=True
-        )
+        mock_instance.del_movie.assert_called_once_with(123, delete_files=False, add_exclusion=True)
         assert result is True
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_delete_movie_failure(self, mock_pyarr):
         """Test movie deletion failure handling."""
         mock_instance = Mock()
@@ -124,14 +120,14 @@ class TestRadarrAPI:
         mock_instance.del_movie.assert_called_once()
         assert result is False
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movie_by_tmdb_id_found(self, mock_pyarr):
         """Test finding a movie by TMDB ID."""
         mock_instance = Mock()
         mock_pyarr.return_value = mock_instance
         mock_instance.get_movie.return_value = [
             {"id": 1, "title": "Movie 1", "tmdbId": 12345},
-            {"id": 2, "title": "Movie 2", "tmdbId": 67890}
+            {"id": 2, "title": "Movie 2", "tmdbId": 67890},
         ]
 
         api = RadarrAPI("http://localhost:7878", "test-api-key")
@@ -141,21 +137,19 @@ class TestRadarrAPI:
         assert result["title"] == "Movie 1"
         assert result["tmdbId"] == 12345
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movie_by_tmdb_id_not_found(self, mock_pyarr):
         """Test searching for a non-existent TMDB ID."""
         mock_instance = Mock()
         mock_pyarr.return_value = mock_instance
-        mock_instance.get_movie.return_value = [
-            {"id": 1, "title": "Movie 1", "tmdbId": 12345}
-        ]
+        mock_instance.get_movie.return_value = [{"id": 1, "title": "Movie 1", "tmdbId": 12345}]
 
         api = RadarrAPI("http://localhost:7878", "test-api-key")
         result = api.get_movie_by_tmdb_id(99999)
 
         assert result is None
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movie_by_tmdb_id_exception(self, mock_pyarr):
         """Test TMDB ID search with API exception."""
         mock_instance = Mock()
@@ -167,7 +161,7 @@ class TestRadarrAPI:
 
         assert result is None
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movies_by_tag(self, mock_pyarr):
         """Test getting movies filtered by tag."""
         mock_instance = Mock()
@@ -175,7 +169,7 @@ class TestRadarrAPI:
         mock_instance.get_movie.return_value = [
             {"id": 1, "title": "Movie 1", "tags": [1, 2]},
             {"id": 2, "title": "Movie 2", "tags": [2, 3]},
-            {"id": 3, "title": "Movie 3", "tags": [1]}
+            {"id": 3, "title": "Movie 3", "tags": [1]},
         ]
 
         api = RadarrAPI("http://localhost:7878", "test-api-key")
@@ -185,21 +179,19 @@ class TestRadarrAPI:
         assert result[0]["title"] == "Movie 1"
         assert result[1]["title"] == "Movie 3"
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movies_by_tag_no_matches(self, mock_pyarr):
         """Test getting movies by tag with no matches."""
         mock_instance = Mock()
         mock_pyarr.return_value = mock_instance
-        mock_instance.get_movie.return_value = [
-            {"id": 1, "title": "Movie 1", "tags": [2, 3]}
-        ]
+        mock_instance.get_movie.return_value = [{"id": 1, "title": "Movie 1", "tags": [2, 3]}]
 
         api = RadarrAPI("http://localhost:7878", "test-api-key")
         result = api.get_movies_by_tag(1)
 
         assert len(result) == 0
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movies_by_tag_exception(self, mock_pyarr):
         """Test getting movies by tag with API exception."""
         mock_instance = Mock()
@@ -211,20 +203,22 @@ class TestRadarrAPI:
 
         assert result == []
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movie_file_info_with_file(self, mock_pyarr):
         """Test getting movie file info when file exists."""
         mock_instance = Mock()
         mock_pyarr.return_value = mock_instance
-        mock_instance.get_movie.return_value = [{
-            "id": 1,
-            "movieFile": {
-                "id": 123,
-                "size": 1073741824,
-                "quality": {"quality": {"name": "Bluray-1080p"}},
-                "relativePath": "Movie/Movie.mkv"
+        mock_instance.get_movie.return_value = [
+            {
+                "id": 1,
+                "movieFile": {
+                    "id": 123,
+                    "size": 1073741824,
+                    "quality": {"quality": {"name": "Bluray-1080p"}},
+                    "relativePath": "Movie/Movie.mkv",
+                },
             }
-        }]
+        ]
 
         api = RadarrAPI("http://localhost:7878", "test-api-key")
         result = api.get_movie_file_info(1)
@@ -233,7 +227,7 @@ class TestRadarrAPI:
         assert result["size"] == 1073741824
         assert result["quality"]["quality"]["name"] == "Bluray-1080p"
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movie_file_info_no_file(self, mock_pyarr):
         """Test getting movie file info when no file exists."""
         mock_instance = Mock()
@@ -245,7 +239,7 @@ class TestRadarrAPI:
 
         assert result is None
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movie_file_info_empty_response(self, mock_pyarr):
         """Test getting movie file info with empty API response."""
         mock_instance = Mock()
@@ -257,7 +251,7 @@ class TestRadarrAPI:
 
         assert result is None
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_get_movie_file_info_exception(self, mock_pyarr):
         """Test getting movie file info with API exception."""
         mock_instance = Mock()
@@ -269,14 +263,14 @@ class TestRadarrAPI:
 
         assert result is None
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_movies_without_tags(self, mock_pyarr):
         """Test handling movies without tags field."""
         mock_instance = Mock()
         mock_pyarr.return_value = mock_instance
         mock_instance.get_movie.return_value = [
             {"id": 1, "title": "Movie without tags"},
-            {"id": 2, "title": "Movie with tags", "tags": [1]}
+            {"id": 2, "title": "Movie with tags", "tags": [1]},
         ]
 
         api = RadarrAPI("http://localhost:7878", "test-api-key")
@@ -290,14 +284,14 @@ class TestRadarrAPI:
 class TestRadarrAPIIntegration:
     """Integration tests for RadarrAPI error handling and edge cases."""
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_pyarr_api_initialization(self, mock_pyarr):
         """Test that PyarrRadarrAPI is initialized correctly."""
         RadarrAPI("http://localhost:7878", "test-key")
 
         mock_pyarr.assert_called_once_with("http://localhost:7878", "test-key")
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_method_call_forwarding(self, mock_pyarr):
         """Test that method calls are forwarded to PyarrRadarrAPI correctly."""
         mock_instance = Mock()
@@ -321,9 +315,9 @@ class TestRadarrAPIIntegration:
 
         assert api.base_url == "http://test:7878"
         assert api.api_key == "my-key"
-        assert hasattr(api, '_api')
+        assert hasattr(api, "_api")
 
-    @patch('prunarr.radarr.PyarrRadarrAPI')
+    @patch("prunarr.radarr.PyarrRadarrAPI")
     def test_complex_movie_filtering(self, mock_pyarr):
         """Test complex movie filtering scenarios."""
         mock_instance = Mock()
@@ -335,7 +329,7 @@ class TestRadarrAPIIntegration:
             {"id": 2, "title": "Movie B", "tags": [2, 4]},
             {"id": 3, "title": "Movie C", "tags": []},
             {"id": 4, "title": "Movie D"},  # No tags field
-            {"id": 5, "title": "Movie E", "tags": [1, 5]}
+            {"id": 5, "title": "Movie E", "tags": [1, 5]},
         ]
 
         api = RadarrAPI("http://localhost:7878", "test-key")

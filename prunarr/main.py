@@ -20,6 +20,7 @@ Usage:
 """
 
 from typing import NoReturn
+
 from prunarr.cli import app
 
 

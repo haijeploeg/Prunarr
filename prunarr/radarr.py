@@ -14,7 +14,9 @@ The RadarrAPI class serves as a facade over the pyarr.RadarrAPI, providing:
 """
 
 from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
+
 from pyarr import RadarrAPI as PyarrRadarrAPI
 
 
@@ -108,7 +110,9 @@ class RadarrAPI:
         """
         return self._api.get_tag(tag_id)
 
-    def delete_movie(self, movie_id: int, delete_files: bool = True, add_exclusion: bool = False) -> bool:
+    def delete_movie(
+        self, movie_id: int, delete_files: bool = True, add_exclusion: bool = False
+    ) -> bool:
         """
         Delete a movie from Radarr with comprehensive options.
 
@@ -139,9 +143,7 @@ class RadarrAPI:
         """
         try:
             return self._api.del_movie(
-                movie_id,
-                delete_files=delete_files,
-                add_exclusion=add_exclusion
+                movie_id, delete_files=delete_files, add_exclusion=add_exclusion
             )
         except Exception:
             # Log the exception in production code, but return False for now
@@ -172,7 +174,7 @@ class RadarrAPI:
         try:
             movies = self.get_movie()
             for movie in movies:
-                if movie.get('tmdbId') == tmdb_id:
+                if movie.get("tmdbId") == tmdb_id:
                     return movie
             return None
         except Exception:
@@ -202,10 +204,7 @@ class RadarrAPI:
         """
         try:
             movies = self.get_movie()
-            return [
-                movie for movie in movies
-                if tag_id in movie.get('tags', [])
-            ]
+            return [movie for movie in movies if tag_id in movie.get("tags", [])]
         except Exception:
             return []
 
@@ -231,7 +230,7 @@ class RadarrAPI:
             movie = self.get_movie(movie_id)
             if movie and isinstance(movie, list) and len(movie) > 0:
                 movie_data = movie[0]
-                return movie_data.get('movieFile')
+                return movie_data.get("movieFile")
             return None
         except Exception:
             return None

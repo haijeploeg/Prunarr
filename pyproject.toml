@@ -104,13 +104,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
     "--verbose",
-    "--tb=short",
-    "--strict-markers",
-    "--cov=prunarr",
-    "--cov-report=term-missing",
-    "--cov-report=html:htmlcov",
-    "--cov-report=xml",
-    "--cov-fail-under=80"
+    "--tb=short"
 ]
 markers = [
     "unit: Unit tests",

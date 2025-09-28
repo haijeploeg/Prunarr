@@ -2,10 +2,10 @@
 max-line-length = 100
 select = E,W,F,C,N
 ignore =
-    E203,  # whitespace before ':'
-    W503,  # line break before binary operator
-    E501,  # line too long (handled by black)
-    F401,  # imported but unused (handled by isort/mypy)
+    E203,
+    W503,
+    E501,
+    F401
 exclude =
     .git,
     __pycache__,

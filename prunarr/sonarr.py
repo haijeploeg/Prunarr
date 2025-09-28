@@ -15,9 +15,11 @@ The SonarrAPI class serves as an enhanced facade over pyarr.SonarrAPI, providing
 """
 
 from __future__ import annotations
+
 from typing import Any, Dict, List, Optional
-from pyarr import SonarrAPI as PyarrSonarrAPI
+
 import requests
+from pyarr import SonarrAPI as PyarrSonarrAPI
 
 
 class SonarrAPI:
@@ -181,11 +183,7 @@ class SonarrAPI:
         try:
             # Primary method: Direct HTTP call to Sonarr API bypassing pyarr limitations
             url = f"{self._base_url}/api/v3/episode"
-            params = {
-                "seriesId": series_id,
-                "includeImages": "false",
-                "apikey": self._api_key
-            }
+            params = {"seriesId": series_id, "includeImages": "false", "apikey": self._api_key}
 
             response = requests.get(url, params=params, timeout=30)
             response.raise_for_status()
@@ -244,7 +242,9 @@ class SonarrAPI:
         """
         return self._api.get_tag(tag_id)
 
-    def delete_series(self, series_id: int, delete_files: bool = True, add_exclusion: bool = False) -> bool:
+    def delete_series(
+        self, series_id: int, delete_files: bool = True, add_exclusion: bool = False
+    ) -> bool:
         """
         Delete a TV series from Sonarr with comprehensive options.
 
@@ -276,9 +276,7 @@ class SonarrAPI:
         """
         try:
             return self._api.del_series(
-                series_id,
-                delete_files=delete_files,
-                add_exclusion=add_exclusion
+                series_id, delete_files=delete_files, add_exclusion=add_exclusion
             )
         except Exception:
             # Log the exception in production code, but return False for now
@@ -354,20 +352,22 @@ class SonarrAPI:
             # Transform to standardized format with comprehensive information
             episodes_with_info = []
             for episode in episodes:
-                episodes_with_info.append({
-                    "id": episode.get("id"),
-                    "series_id": episode.get("seriesId"),
-                    "season_number": episode.get("seasonNumber"),
-                    "episode_number": episode.get("episodeNumber"),
-                    "title": episode.get("title"),
-                    "has_file": episode.get("hasFile", False),
-                    "episode_file_id": episode.get("episodeFileId"),
-                    "air_date": episode.get("airDate"),
-                    "overview": episode.get("overview", ""),
-                    "runtime": episode.get("runtime", 0),
-                    "monitored": episode.get("monitored", False),
-                    "downloaded": episode.get("hasFile", False),
-                })
+                episodes_with_info.append(
+                    {
+                        "id": episode.get("id"),
+                        "series_id": episode.get("seriesId"),
+                        "season_number": episode.get("seasonNumber"),
+                        "episode_number": episode.get("episodeNumber"),
+                        "title": episode.get("title"),
+                        "has_file": episode.get("hasFile", False),
+                        "episode_file_id": episode.get("episodeFileId"),
+                        "air_date": episode.get("airDate"),
+                        "overview": episode.get("overview", ""),
+                        "runtime": episode.get("runtime", 0),
+                        "monitored": episode.get("monitored", False),
+                        "downloaded": episode.get("hasFile", False),
+                    }
+                )
 
             return episodes_with_info
         except Exception:
@@ -465,7 +465,7 @@ class SonarrAPI:
                         "season_number": season_num,
                         "episodes": [],
                         "total_episodes": 0,
-                        "downloaded_episodes": 0
+                        "downloaded_episodes": 0,
                     }
 
                 seasons_info[season_num]["episodes"].append(episode)
@@ -482,7 +482,7 @@ class SonarrAPI:
                 "seasons": list(seasons_info.values()),
                 "total_seasons": len(seasons_info),
                 "total_episodes": total_episodes,
-                "downloaded_episodes": total_downloaded
+                "downloaded_episodes": total_downloaded,
             }
         except Exception:
             # Return empty summary structure on any error
@@ -491,5 +491,5 @@ class SonarrAPI:
                 "seasons": [],
                 "total_seasons": 0,
                 "total_episodes": 0,
-                "downloaded_episodes": 0
+                "downloaded_episodes": 0,
             }

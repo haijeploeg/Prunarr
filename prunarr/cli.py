@@ -13,17 +13,19 @@ The CLI supports:
 - Debug logging for troubleshooting
 """
 
-import typer
-from typing import Optional
 from pathlib import Path
+from typing import Optional
+
+import typer
 from pydantic import ValidationError
 
+from prunarr.commands import history, movies, series
 from prunarr.config import load_settings
-from prunarr.commands import movies, series, history
 from prunarr.logger import get_logger
+
 app = typer.Typer(
     help="[bold cyan]PrunArr CLI[/bold cyan]: Automated media library cleanup for Radarr and Sonarr based on Tautulli watch status.",
-    rich_markup_mode="rich"
+    rich_markup_mode="rich",
 )
 
 # Register command sub-applications
@@ -75,10 +77,7 @@ def main(
         settings = load_settings(config_path)
 
         # Store settings and debug flag in context for access by subcommands
-        ctx.obj = {
-            "settings": settings,
-            "debug": debug
-        }
+        ctx.obj = {"settings": settings, "debug": debug}
 
         if debug:
             logger.debug("Debug mode enabled for CLI session")

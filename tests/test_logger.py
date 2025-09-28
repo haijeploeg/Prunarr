@@ -5,9 +5,10 @@ Tests the PrunArrLogger class functionality including message formatting,
 log levels, debug mode, and Rich console integration.
 """
 
-import pytest
-from unittest.mock import Mock, patch
 from datetime import datetime
+from unittest.mock import Mock, patch
+
+import pytest
 
 from prunarr.logger import PrunArrLogger, get_logger
 
@@ -31,8 +32,8 @@ class TestPrunArrLogger:
         """Test that timestamps are formatted correctly."""
         logger = PrunArrLogger()
 
-        with patch.object(datetime, 'now') as mock_now:
-            mock_now.return_value = datetime(2023, 1, 1, 14, 30, 45)
+        with patch("prunarr.logger.datetime") as mock_datetime:
+            mock_datetime.now.return_value = datetime(2023, 1, 1, 14, 30, 45)
             timestamp = logger._get_timestamp()
             assert timestamp == "14:30:45"
 
@@ -40,7 +41,7 @@ class TestPrunArrLogger:
         """Test basic message formatting without extra details."""
         logger = PrunArrLogger()
 
-        with patch.object(logger, '_get_timestamp', return_value="14:30:45"):
+        with patch.object(logger, "_get_timestamp", return_value="14:30:45"):
             formatted = logger._format_message("info", "ℹ️", "blue", "Test message")
             expected = "[dim][14:30:45][/dim] - [blue]ℹ️ INFO:[/blue] Test message"
             assert formatted == expected
@@ -49,17 +50,15 @@ class TestPrunArrLogger:
         """Test message formatting with extra details."""
         logger = PrunArrLogger()
 
-        with patch.object(logger, '_get_timestamp', return_value="14:30:45"):
-            formatted = logger._format_message(
-                "info", "ℹ️", "blue", "Test message", "Extra details"
-            )
+        with patch.object(logger, "_get_timestamp", return_value="14:30:45"):
+            formatted = logger._format_message("info", "ℹ️", "blue", "Test message", "Extra details")
             expected = (
                 "[dim][14:30:45][/dim] - [blue]ℹ️ INFO:[/blue] Test message\n"
                 "[dim]    Extra details[/dim]"
             )
             assert formatted == expected
 
-    @patch('prunarr.logger.Console')
+    @patch("prunarr.logger.Console")
     def test_debug_message_enabled(self, mock_console_class):
         """Test debug message output when debug mode is enabled."""
         mock_console = Mock()
@@ -74,7 +73,7 @@ class TestPrunArrLogger:
         assert "Debug message" in call_args
         assert "Extra info" in call_args
 
-    @patch('prunarr.logger.Console')
+    @patch("prunarr.logger.Console")
     def test_debug_message_disabled(self, mock_console_class):
         """Test debug message is not output when debug mode is disabled."""
         mock_console = Mock()
@@ -85,7 +84,7 @@ class TestPrunArrLogger:
 
         mock_console.print.assert_not_called()
 
-    @patch('prunarr.logger.Console')
+    @patch("prunarr.logger.Console")
     def test_info_message(self, mock_console_class):
         """Test info message output."""
         mock_console = Mock()
@@ -100,7 +99,7 @@ class TestPrunArrLogger:
         assert "Info message" in call_args
         assert "Additional context" in call_args
 
-    @patch('prunarr.logger.Console')
+    @patch("prunarr.logger.Console")
     def test_warning_message(self, mock_console_class):
         """Test warning message output."""
         mock_console = Mock()
@@ -114,7 +113,7 @@ class TestPrunArrLogger:
         assert "⚠️ WARNING:" in call_args
         assert "Warning message" in call_args
 
-    @patch('prunarr.logger.Console')
+    @patch("prunarr.logger.Console")
     def test_error_message(self, mock_console_class):
         """Test error message output."""
         mock_console = Mock()
@@ -129,7 +128,7 @@ class TestPrunArrLogger:
         assert "Error message" in call_args
         assert "Error details" in call_args
 
-    @patch('prunarr.logger.Console')
+    @patch("prunarr.logger.Console")
     def test_success_message(self, mock_console_class):
         """Test success message output."""
         mock_console = Mock()
@@ -143,7 +142,7 @@ class TestPrunArrLogger:
         assert "✅ SUCCESS:" in call_args
         assert "Success message" in call_args
 
-    @patch('prunarr.logger.Console')
+    @patch("prunarr.logger.Console")
     def test_progress_message(self, mock_console_class):
         """Test progress message output."""
         mock_console = Mock()
@@ -158,7 +157,7 @@ class TestPrunArrLogger:
         assert "Processing data" in call_args
         assert "Step 1 of 3" in call_args
 
-    @patch('prunarr.logger.Console')
+    @patch("prunarr.logger.Console")
     def test_console_initialization(self, mock_console_class):
         """Test that console is initialized with stderr=True."""
         logger = PrunArrLogger()
@@ -166,7 +165,7 @@ class TestPrunArrLogger:
 
     def test_multiple_log_levels(self):
         """Test that different log levels work correctly in sequence."""
-        with patch('prunarr.logger.Console') as mock_console_class:
+        with patch("prunarr.logger.Console") as mock_console_class:
             mock_console = Mock()
             mock_console_class.return_value = mock_console
 
@@ -184,7 +183,7 @@ class TestPrunArrLogger:
 
     def test_message_without_extra_detail(self):
         """Test that messages work correctly without extra details."""
-        with patch('prunarr.logger.Console') as mock_console_class:
+        with patch("prunarr.logger.Console") as mock_console_class:
             mock_console = Mock()
             mock_console_class.return_value = mock_console
 
@@ -276,7 +275,8 @@ class TestLoggerIntegration:
 
         # Should contain timestamp pattern (HH:MM:SS)
         import re
-        timestamp_pattern = r'\d{2}:\d{2}:\d{2}'
+
+        timestamp_pattern = r"\d{2}:\d{2}:\d{2}"
         assert re.search(timestamp_pattern, captured.err)
 
     def test_rich_markup_in_output(self, capsys):
