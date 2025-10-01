@@ -79,6 +79,7 @@ class TautulliAPI:
         Raises:
             requests.HTTPError: If API request fails or authentication is invalid
             requests.Timeout: If request exceeds timeout limit
+            ValueError: If API returns invalid JSON
 
         Note:
             All API requests automatically include authentication and are limited
@@ -88,9 +89,46 @@ class TautulliAPI:
         params = params or {}
         params.update({"apikey": self.api_key, "cmd": cmd})
 
-        response = requests.get(url, params=params, timeout=15)
-        response.raise_for_status()
-        return response.json().get("response", {})
+        try:
+            response = requests.get(url, params=params, timeout=15)
+
+            # Handle authentication errors
+            if response.status_code == 401:
+                raise ValueError("Invalid Tautulli API key. Check your configuration.")
+
+            # Handle configuration/URL errors
+            if response.status_code in [403, 404, 307, 308] or response.status_code >= 500:
+                raise ValueError("Tautulli server not accessible. Check your URL and verify Tautulli is running.")
+
+            # Handle non-JSON responses (redirects, HTML pages, etc.)
+            content_type = response.headers.get('content-type', '').lower()
+            if 'application/json' not in content_type:
+                raise ValueError("Invalid response from Tautulli. Check your URL configuration.")
+
+            response.raise_for_status()
+
+            # Parse JSON response
+            try:
+                json_data = response.json()
+
+                # Check for Tautulli API errors
+                if isinstance(json_data, dict) and json_data.get('response', {}).get('result') == 'error':
+                    error_msg = json_data.get('response', {}).get('message', 'Unknown error')
+                    raise ValueError(f"Tautulli API error: {error_msg}")
+
+                return json_data.get("response", {})
+
+            except ValueError as e:
+                if "error:" in str(e).lower():
+                    raise  # Re-raise Tautulli API errors as-is
+                raise ValueError("Invalid JSON response from Tautulli. Check your configuration.")
+
+        except requests.exceptions.ConnectionError:
+            raise ValueError("Cannot connect to Tautulli server. Check your URL and network connection.")
+        except requests.exceptions.Timeout:
+            raise ValueError("Tautulli API request timed out. Server may be overloaded.")
+        except requests.exceptions.RequestException as e:
+            raise ValueError(f"Network error connecting to Tautulli: {e}")
 
     def get_watch_history(
         self,
@@ -131,6 +169,7 @@ class TautulliAPI:
         """
         all_records: List[Dict[str, Any]] = []
         start = 0
+        total_records_available = None
 
         while True:
             # Calculate how many records to request this iteration
@@ -146,8 +185,13 @@ class TautulliAPI:
             }
 
             resp = self._request("get_history", params=params)
-            # Tautulli response structure: { "data": { "data": [ ... ] } }
-            page_data = resp.get("data", {}).get("data", [])
+            # Tautulli response structure: { "data": { "data": [ ... ], "recordsFiltered": ... } }
+            data_obj = resp.get("data", {})
+            page_data = data_obj.get("data", [])
+
+            # Get total available records from Tautulli (if provided)
+            if total_records_available is None:
+                total_records_available = data_obj.get("recordsFiltered") or data_obj.get("recordsTotal")
 
             if not page_data:
                 break
@@ -158,6 +202,10 @@ class TautulliAPI:
             if limit and len(all_records) >= limit:
                 break
             if len(page_data) < current_page_size:
+                break
+
+            # Safety check: if we know the total and we've fetched it all, stop
+            if total_records_available and len(all_records) >= total_records_available:
                 break
 
             start += current_page_size
@@ -171,8 +219,8 @@ class TautulliAPI:
         Returns records where watched_status == 1 and media_type == "movie",
         sorted by date descending using server-side sorting.
         """
-        # Use server-side sorting for better performance
-        all_records = self.get_watch_history(order_column="date", order_dir="desc")
+        # Use server-side sorting for better performance with larger page size
+        all_records = self.get_watch_history(page_size=1000, order_column="date", order_dir="desc")
 
         return [
             {
@@ -211,13 +259,23 @@ class TautulliAPI:
         # Use server-side sorting (newest first) and smart limiting
         # We might need more records than the limit due to client-side filtering
         fetch_limit = None
+        page_size = 1000  # Use larger page size for better performance
+
         if limit:
-            # Fetch more records to account for filtering, but cap at reasonable amount
-            fetch_limit = min(limit * 3, 1000)
+            # If filters are applied, we might need to fetch more records to account for filtering
+            # Only apply a multiplier if we have filters that could reduce the result set
+            has_filters = watched_only or user_id is not None or username or media_type
+            if has_filters:
+                # Fetch up to 3x the requested limit to account for filtering, but allow unlimited
+                fetch_limit = limit * 3
+            else:
+                # No filters applied, just fetch exactly what was requested
+                fetch_limit = limit
 
         # Get pre-sorted records from server (newest first by date)
+        # Use larger page size to reduce number of API calls
         all_records = self.get_watch_history(
-            order_column="date", order_dir="desc", limit=fetch_limit
+            page_size=page_size, order_column="date", order_dir="desc", limit=fetch_limit
         )
 
         filtered_records = []
@@ -241,17 +299,37 @@ class TautulliAPI:
             if media_type and record.get("media_type") != media_type:
                 continue
 
+            # Format title based on media type
+            title = record.get("title", "")
+            media_type_value = record.get("media_type", "")
+
+            if media_type_value == "episode":
+                # For episodes, combine series name, episode title, and season/episode info
+                series_title = record.get("grandparent_title", "")
+                episode_title = record.get("title", "")
+                season_num = record.get("parent_media_index")
+                episode_num = record.get("media_index")
+
+                if series_title and episode_title:
+                    if season_num is not None and episode_num is not None:
+                        title = f"{series_title} - {episode_title} (S{season_num} · E{episode_num})"
+                    else:
+                        title = f"{series_title} - {episode_title}"
+                elif series_title:
+                    title = series_title
+            # For movies and other types, use the original title
+
             # Format the record with relevant fields
             formatted_record = {
                 "history_id": record.get("id"),
-                "title": record.get("title"),
+                "title": title,
                 "rating_key": record.get("rating_key"),
                 "user": record.get("friendly_name"),
                 "user_id": record.get("user_id"),
                 "watched_at": record.get("date"),
                 "stopped": record.get("stopped"),
                 "watched_status": record.get("watched_status"),
-                "media_type": record.get("media_type"),
+                "media_type": media_type_value,
                 "year": record.get("year"),
                 "duration": record.get("duration"),
                 "percent_complete": record.get("percent_complete"),
@@ -275,7 +353,8 @@ class TautulliAPI:
             history_id: The history entry ID to find
         """
         # Get all history records and search for the matching ID
-        all_records = self.get_watch_history()
+        # Use no limit to ensure we can find any history ID, with larger page size for efficiency
+        all_records = self.get_watch_history(page_size=1000, limit=None)
 
         # Find the record with matching ID
         matching_record = None
@@ -295,10 +374,28 @@ class TautulliAPI:
         if rating_key:
             metadata = self.get_metadata(rating_key)
 
+        # Format title based on media type (same logic as get_filtered_history)
+        title = record.get("title", "")
+        media_type_val = record.get("media_type", "")
+
+        if media_type_val == "episode":
+            series_title = record.get("grandparent_title", "")
+            episode_title = record.get("title", "")
+            season_num = record.get("parent_media_index")
+            episode_num = record.get("media_index")
+
+            if series_title and episode_title:
+                if season_num is not None and episode_num is not None:
+                    title = f"{series_title} - {episode_title} (S{season_num} · E{episode_num})"
+                else:
+                    title = f"{series_title} - {episode_title}"
+            elif series_title:
+                title = series_title
+
         # Combine history and metadata info
         return {
             "history_id": record.get("id"),
-            "title": record.get("title"),
+            "title": title,
             "rating_key": record.get("rating_key"),
             "user": record.get("friendly_name"),
             "user_id": record.get("user_id"),
@@ -354,8 +451,8 @@ class TautulliAPI:
         Returns records where watched_status == 1 and media_type == "episode",
         sorted by date descending using server-side sorting.
         """
-        # Use server-side sorting for better performance
-        all_records = self.get_watch_history(order_column="date", order_dir="desc")
+        # Use server-side sorting for better performance with larger page size
+        all_records = self.get_watch_history(page_size=1000, order_column="date", order_dir="desc")
 
         return [
             {

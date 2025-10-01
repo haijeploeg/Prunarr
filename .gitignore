@@ -162,6 +162,7 @@ cython_debug/
 # Configuration files with sensitive data
 config.yaml
 *.local.yaml
+*.secret.yaml
 
 # IDE files
 .vscode/
@@ -170,8 +171,9 @@ config.yaml
 # macOS
 .DS_Store
 
-# Claude Code files
-CLAUDE.md
-
 # Test outputs
 test_output/
+
+# Claude
+.claude/
+CLAUDE.md

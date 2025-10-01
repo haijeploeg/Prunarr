@@ -1,0 +1,31 @@
+# PrunArr Configuration Example
+# Copy this file to config.yaml and update with your actual API credentials
+# Keep your config.yaml file secure and do not commit it to version control
+
+# Required API Credentials
+# Get these from your respective application settings
+
+radarr_api_key: "your-radarr-api-key-here"
+radarr_url: "https://radarr.yourdomain.com"
+
+sonarr_api_key: "your-sonarr-api-key-here"
+sonarr_url: "https://sonarr.yourdomain.com"
+
+tautulli_api_key: "your-tautulli-api-key-here"
+tautulli_url: "https://tautulli.yourdomain.com"
+
+# Optional: Customize user tag pattern (default works for most setups)
+# This regex pattern extracts usernames from Radarr/Sonarr tags
+# Default pattern expects tags like "123 - username"
+user_tag_regex: "^\\d+ - (.+)$"
+
+# Example custom patterns:
+# user_tag_regex: "^user:(.+)$"           # For tags like "user:john_doe"
+# user_tag_regex: "^\\[(.+)\\]$"          # For tags like "[john_doe]"
+# user_tag_regex: "^req_by_(.+)$"         # For tags like "req_by_alice"
+
+# Note: PrunArr uses command-line parameters for operational settings
+# The --days-watched parameter controls retention periods
+# Examples:
+#   prunarr movies remove --days-watched 60    # Remove movies watched 60+ days ago
+#   prunarr series remove --days-watched 90    # Remove series watched 90+ days ago

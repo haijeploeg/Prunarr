@@ -17,103 +17,15 @@ from rich.table import Table
 from prunarr.config import Settings
 from prunarr.logger import get_logger
 from prunarr.prunarr import PrunArr
+from prunarr.utils import (
+    format_completion_percentage,
+    format_episode_count,
+    format_file_size,
+    format_series_watch_status,
+)
 
 console = Console()
 app = typer.Typer(help="Manage TV shows in Sonarr.", rich_markup_mode="rich")
-
-
-def format_watch_status(status: str) -> str:
-    """
-    Format watch status with Rich markup colors.
-
-    Args:
-        status: Watch status (fully_watched, partially_watched, unwatched, no_episodes)
-
-    Returns:
-        Colored status string with Rich markup
-    """
-    if status == "fully_watched":
-        return "[green]✓ Fully Watched[/green]"
-    elif status == "partially_watched":
-        return "[yellow]📺 Partially Watched[/yellow]"
-    elif status == "unwatched":
-        return "[red]✗ Unwatched[/red]"
-    elif status == "no_episodes":
-        return "[dim]❌ No Episodes[/dim]"
-    else:
-        return "[dim]❓ Unknown[/dim]"
-
-
-def format_completion_percentage(percentage: float) -> str:
-    """
-    Format completion percentage with color coding.
-
-    Args:
-        percentage: Completion percentage (0-100)
-
-    Returns:
-        Colored percentage string with Rich markup
-    """
-    if percentage >= 100:
-        return f"[green]{percentage:.0f}%[/green]"
-    elif percentage >= 50:
-        return f"[yellow]{percentage:.0f}%[/yellow]"
-    elif percentage > 0:
-        return f"[red]{percentage:.0f}%[/red]"
-    else:
-        return "[dim]0%[/dim]"
-
-
-def format_episode_count(watched: int, total: int) -> str:
-    """
-    Format episode count with color coding.
-
-    Args:
-        watched: Number of watched episodes
-        total: Total number of episodes
-
-    Returns:
-        Colored episode count string
-    """
-    if total == 0:
-        return "[dim]0/0[/dim]"
-    elif watched == total:
-        return f"[green]{watched}/{total}[/green]"
-    elif watched > 0:
-        return f"[yellow]{watched}/{total}[/yellow]"
-    else:
-        return f"[red]{watched}/{total}[/red]"
-
-
-def format_file_size(size_bytes: int) -> str:
-    """
-    Format file size in bytes to human readable format.
-
-    Args:
-        size_bytes: Size in bytes
-
-    Returns:
-        Formatted size string (e.g., "1.2 GB", "450 MB")
-    """
-    if size_bytes == 0:
-        return "0 B"
-
-    # Define size units
-    units = ["B", "KB", "MB", "GB", "TB"]
-    size = float(size_bytes)
-    unit_index = 0
-
-    while size >= 1024 and unit_index < len(units) - 1:
-        size /= 1024
-        unit_index += 1
-
-    # Format with appropriate decimal places
-    if size >= 100:
-        return f"{size:.0f} {units[unit_index]}"
-    elif size >= 10:
-        return f"{size:.1f} {units[unit_index]}"
-    else:
-        return f"{size:.2f} {units[unit_index]}"
 
 
 @app.command("list")
@@ -148,12 +60,13 @@ def list_series(
 
     [bold yellow]Table columns:[/bold yellow]
         • [cyan]ID[/cyan] - Sonarr series ID
-        • [cyan]Title[/cyan] and [cyan]Year[/cyan] - series information
+        • [cyan]Title[/cyan] - series name
         • [cyan]User[/cyan] - who requested the series
         • [cyan]Status[/cyan] - watch completion status
         • [cyan]Episodes[/cyan] - watched/total episode counts
         • [cyan]Progress[/cyan] - completion percentage
-        • [cyan]Seasons[/cyan] - number of seasons
+        • [cyan]Seasons[/cyan] - comma-separated list of downloaded seasons
+        • [cyan]Size[/cyan] - total file size
         • [cyan]Last Watched[/cyan] - most recent watch date
 
     [bold yellow]Examples:[/bold yellow]
@@ -222,21 +135,20 @@ def list_series(
 
         # Create Rich table with appropriate styling
         table = Table(title="Sonarr TV Series")
-        table.add_column("ID", style="cyan", width=8)
-        table.add_column("Title", style="bright_white", min_width=20)
-        table.add_column("Year", style="yellow", width=6)
-        table.add_column("User", style="blue", width=12)
-        table.add_column("Status", width=15)
-        table.add_column("Episodes", style="cyan", width=12)
-        table.add_column("Progress", style="green", width=8)
+        table.add_column("ID", style="cyan", width=6)
+        table.add_column("Title", style="bright_white", width=20)
+        table.add_column("User", style="blue", width=10)
+        table.add_column("Status", width=12)
+        table.add_column("Episodes", style="cyan", width=10)
+        table.add_column("Progress", style="green", width=7)
         table.add_column("Seasons", style="magenta", width=8)
-        table.add_column("Size", style="cyan", width=10)
-        table.add_column("Last Watched", style="dim", width=12)
+        table.add_column("Size", style="cyan", width=8)
+        table.add_column("Last Watched", style="dim", width=10)
 
         # Populate table with series data
         for series in filtered_series:
-            # Use seasons_count from data
-            season_count = series.get("seasons_count", 0)
+            # Use available_seasons from data
+            available_seasons = series.get("available_seasons", "")
 
             # Format last watched date
             last_watched = series.get("most_recent_watch")
@@ -245,14 +157,13 @@ def list_series(
             table.add_row(
                 str(series.get("id", "N/A")),
                 str(series.get("title", "N/A")),
-                str(series.get("year", "N/A")),
                 str(series.get("user", "Untagged") if series.get("user") else "Untagged"),
-                format_watch_status(series.get("watch_status", "unknown")),
+                format_series_watch_status(series.get("watch_status", "unknown")),
                 format_episode_count(
                     series.get("watched_episodes", 0), series.get("total_episodes", 0)
                 ),
                 format_completion_percentage(series.get("completion_percentage", 0)),
-                str(season_count),
+                available_seasons if available_seasons else "-",
                 format_file_size(series.get("total_size_on_disk", 0)),
                 last_watched_str,
             )
@@ -289,8 +200,8 @@ def remove_series(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show what would be removed without actually removing"
     ),
-    auto_confirm: bool = typer.Option(
-        False, "--yes", "-y", help="Automatically confirm removal without prompting"
+    force: bool = typer.Option(
+        False, "--force", "-f", help="Skip confirmation prompts"
     ),
 ):
     """
@@ -320,7 +231,7 @@ def remove_series(
         prunarr series remove [green]--mode[/green] season [green]--days-watched[/green] 45
 
         [dim]# Remove specific user's content without confirmation[/dim]
-        prunarr series remove [green]--username[/green] \"john\" [green]--yes[/green]
+        prunarr series remove [green]--username[/green] \"john\" [green]--force[/green]
 
         [dim]# Remove specific series seasons[/dim]
         prunarr series remove [green]--series[/green] \"the office\" [green]--mode[/green] season
@@ -434,7 +345,7 @@ def remove_series(
             return
 
         # Confirmation prompts for actual removal
-        if not auto_confirm:
+        if not force:
             console.print(
                 f"\n[bold red]⚠️  WARNING:[/bold red] This will permanently delete {len(items_to_remove)} {removal_mode}(s) and their files!"
             )
@@ -492,7 +403,7 @@ def remove_series(
             logger.debug(
                 f"Applied filters: days_watched={days_watched}, removal_mode={removal_mode}, "
                 f"username={username}, series_name={series_name}, season={season}, "
-                f"dry_run={dry_run}, auto_confirm={auto_confirm}"
+                f"dry_run={dry_run}, force={force}"
             )
 
     except Exception as e:

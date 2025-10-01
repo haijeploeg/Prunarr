@@ -15,69 +15,10 @@ from rich.table import Table
 from prunarr.config import Settings
 from prunarr.logger import get_logger
 from prunarr.prunarr import PrunArr
+from prunarr.utils import format_duration, format_history_watch_status, format_timestamp
 
 app = typer.Typer(help="Manage Tautulli history.", rich_markup_mode="rich")
 console = Console()
-
-
-def format_duration(seconds: int) -> str:
-    """
-    Format duration in seconds to human readable format.
-
-    Args:
-        seconds: Duration in seconds
-
-    Returns:
-        Formatted duration string (e.g., "2h 30m" or "45m")
-    """
-    if not seconds:
-        return "N/A"
-
-    hours, remainder = divmod(seconds, 3600)
-    minutes, _ = divmod(remainder, 60)
-
-    if hours:
-        return f"{hours}h {minutes}m"
-    return f"{minutes}m"
-
-
-def format_timestamp(timestamp: str) -> str:
-    """
-    Format Unix timestamp to human readable datetime format.
-
-    Args:
-        timestamp: Unix timestamp as string
-
-    Returns:
-        Formatted datetime string in "YYYY-MM-DD HH:MM" format
-    """
-    if not timestamp:
-        return "N/A"
-
-    try:
-        dt = datetime.fromtimestamp(int(timestamp))
-        return dt.strftime("%Y-%m-%d %H:%M")
-    except (ValueError, TypeError):
-        return str(timestamp)
-
-
-def format_watched_status(status: int) -> str:
-    """
-    Format watched status with Rich markup colors.
-
-    Args:
-        status: Tautulli watched status code
-               1 = Fully watched, 0 = Partially watched, other = Stopped
-
-    Returns:
-        Colored status string with Rich markup
-    """
-    if status == 1:
-        return "[green]✓ Watched[/green]"
-    elif status == 0:
-        return "[yellow]⏸ Partial[/yellow]"
-    else:
-        return "[red]✗ Stopped[/red]"
 
 
 @app.command("list")
@@ -96,6 +37,9 @@ def list_history(
     limit: Optional[int] = typer.Option(
         100, "--limit", "-l", help="Limit number of results (default: 100)"
     ),
+    all_records: bool = typer.Option(
+        False, "--all", "-a", help="Fetch all available records (ignores --limit)"
+    ),
 ):
     """
     [bold cyan]List Tautulli watch history with filtering options.[/bold cyan]
@@ -112,17 +56,23 @@ def list_history(
         • [cyan]Platform[/cyan] - playback device
 
     [bold yellow]Examples:[/bold yellow]
-        [dim]# List all history (newest first)[/dim]
+        [dim]# List recent history (default: 100 records)[/dim]
         prunarr history list
+
+        [dim]# Get ALL available records (no limit)[/dim]
+        prunarr history list [green]--all[/green]
 
         [dim]# Show only watched movies from specific user[/dim]
         prunarr history list [green]--watched[/green] [green]--username[/green] "john" [green]--media-type[/green] movie
 
-        [dim]# Get latest 10 records with debug info[/dim]
-        prunarr[blue]--debug[/blue] history list [green]--limit[/green] 10
+        [dim]# Get all records for a specific user[/dim]
+        prunarr history list [green]--all[/green] [green]--username[/green] "alice"
 
-        [dim]# Filter TV episodes for user[/dim]
-        prunarr history list [green]--username[/green] "alice" [green]--media-type[/green] episode
+        [dim]# Custom limit (ignores --all if both specified)[/dim]
+        prunarr history list [green]--limit[/green] 500
+
+        [dim]# Filter TV episodes for user with debug info[/dim]
+        prunarr[blue]--debug[/blue] history list [green]--username[/green] "alice" [green]--media-type[/green] episode [green]--all[/green]
     """
     # Extract settings and debug flag from global context
     context_obj = ctx.obj
@@ -131,16 +81,27 @@ def list_history(
 
     logger = get_logger("history", debug=debug)
 
-    logger.info("Retrieving Tautulli history...")
+    # Validate that --all and --limit are not used together
+    if all_records and limit != 100:  # 100 is the default value
+        logger.error("Cannot use both --all and --limit together. Use either --all for all records or --limit for a specific number.")
+        raise typer.Exit(1)
+
+    if all_records:
+        logger.info("Retrieving ALL Tautulli history records...")
+    else:
+        logger.info(f"Retrieving Tautulli history (limit: {limit})...")
     prunarr = PrunArr(settings)
 
     try:
+        # Determine the limit to use
+        effective_limit = None if all_records else limit
+
         # Fetch filtered and sorted history records
         history = prunarr.tautulli.get_filtered_history(
             watched_only=watched_only,
             username=username,
             media_type=media_type,
-            limit=limit,
+            limit=effective_limit,
         )
 
         if not history:
@@ -151,16 +112,15 @@ def list_history(
 
         # Create Rich table with appropriate styling
         table = Table(title="Tautulli Watch History")
-        table.add_column("ID", style="cyan", width=8)
-        table.add_column("Title", style="bright_white", min_width=25)
-        table.add_column("User", style="blue", width=15)
-        table.add_column("Type", style="magenta", width=8)
-        table.add_column("Year", style="yellow", width=6)
-        table.add_column("Status", width=12)
-        table.add_column("Progress", style="green", width=8)
-        table.add_column("Duration", style="cyan", width=10)
-        table.add_column("Watched At", style="dim", width=16)
-        table.add_column("Platform", style="blue", width=12)
+        table.add_column("ID", style="cyan")
+        table.add_column("Title", style="bright_white", max_width=50)
+        table.add_column("User", style="blue")
+        table.add_column("Type", style="magenta")
+        table.add_column("Status", justify="center")
+        table.add_column("Progress", style="green", justify="center")
+        table.add_column("Duration", style="cyan", justify="center")
+        table.add_column("Watched At", style="dim")
+        table.add_column("Platform", style="blue")
 
         # Populate table with history data
         for record in history:
@@ -168,13 +128,16 @@ def list_history(
                 f"{record.get('percent_complete', 0)}%" if record.get("percent_complete") else "N/A"
             )
 
+            # Debug: Log the title for the first record
+            if debug and record == history[0]:
+                logger.debug(f"Sample title: '{record.get('title', 'N/A')}'")
+
             table.add_row(
                 str(record.get("history_id", "N/A")),
                 str(record.get("title", "N/A")),
                 str(record.get("user", "N/A")),
                 str(record.get("media_type", "N/A")),
-                str(record.get("year", "N/A")),
-                format_watched_status(record.get("watched_status", -1)),
+                format_history_watch_status(record.get("watched_status", -1)),
                 progress,
                 format_duration(record.get("duration", 0)),
                 format_timestamp(record.get("watched_at", "")),
@@ -185,9 +148,10 @@ def list_history(
 
         # Log applied filters in debug mode
         if debug:
+            limit_info = "all records" if all_records else f"limit={limit}"
             logger.debug(
                 f"Applied filters: watched_only={watched_only}, "
-                f"username={username}, media_type={media_type}, limit={limit}"
+                f"username={username}, media_type={media_type}, {limit_info}"
             )
 
     except Exception as e:
@@ -269,7 +233,7 @@ def get_history_details(
         table.add_row("Watched At", format_timestamp(details.get("watched_at", "")))
         table.add_row("Started", format_timestamp(details.get("started", "")))
         table.add_row("Stopped", format_timestamp(details.get("stopped", "")))
-        table.add_row("Status", format_watched_status(details.get("watched_status", -1)))
+        table.add_row("Status", format_history_watch_status(details.get("watched_status", -1)))
         table.add_row("Progress", f"{details.get('percent_complete', 0)}%")
         table.add_row("Duration", format_duration(details.get("duration", 0)))
         table.add_row("Paused Counter", str(details.get("paused_counter", 0)))

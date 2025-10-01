@@ -32,6 +32,8 @@ class TestTautulliAPI:
     def test_request_success(self, mock_get):
         """Test successful API request."""
         mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.headers.get.return_value = 'application/json'
         mock_response.raise_for_status.return_value = None
         mock_response.json.return_value = {"response": {"data": {"key": "value"}}}
         mock_get.return_value = mock_response
@@ -50,6 +52,8 @@ class TestTautulliAPI:
     def test_request_with_no_params(self, mock_get):
         """Test API request without additional parameters."""
         mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.headers.get.return_value = 'application/json'
         mock_response.raise_for_status.return_value = None
         mock_response.json.return_value = {"response": {"success": True}}
         mock_get.return_value = mock_response
@@ -68,12 +72,14 @@ class TestTautulliAPI:
     def test_request_http_error(self, mock_get):
         """Test API request with HTTP error."""
         mock_response = Mock()
+        mock_response.status_code = 404
+        mock_response.headers.get.return_value = 'application/json'
         mock_response.raise_for_status.side_effect = requests.HTTPError("HTTP 404")
         mock_get.return_value = mock_response
 
         api = TautulliAPI("http://localhost:8181", "test-api-key")
 
-        with pytest.raises(requests.HTTPError):
+        with pytest.raises(ValueError, match="Tautulli server not accessible"):
             api._request("test_command")
 
     @patch("requests.get")
@@ -83,7 +89,7 @@ class TestTautulliAPI:
 
         api = TautulliAPI("http://localhost:8181", "test-api-key")
 
-        with pytest.raises(requests.Timeout):
+        with pytest.raises(ValueError, match="Tautulli API request timed out"):
             api._request("test_command")
 
     @patch.object(TautulliAPI, "_request")
@@ -556,6 +562,8 @@ class TestTautulliRegexPatterns:
     def test_get_tvdb_id_from_rating_key_no_match(self, mock_get):
         """Test get_tvdb_id_from_rating_key returns None when no match (line 386)."""
         mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.headers.get.return_value = 'application/json'
         mock_response.json.return_value = {
             "response": {"data": {"guids": ["imdb://tt123456", "other://some_id"]}}  # No TVDB ID
         }

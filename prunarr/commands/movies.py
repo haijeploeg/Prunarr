@@ -15,62 +15,10 @@ from rich.table import Table
 from prunarr.config import Settings
 from prunarr.logger import get_logger
 from prunarr.prunarr import PrunArr
+from prunarr.utils import format_file_size, format_movie_watch_status
 
 console = Console()
 app = typer.Typer(help="Manage movies in Radarr.", rich_markup_mode="rich")
-
-
-def format_file_size(size_bytes: int) -> str:
-    """
-    Format file size in bytes to human readable format.
-
-    Args:
-        size_bytes: File size in bytes
-
-    Returns:
-        Formatted file size string (e.g., "1.2 GB" or "450 MB")
-    """
-    if not size_bytes:
-        return "N/A"
-
-    for unit in ["B", "KB", "MB", "GB", "TB"]:
-        if size_bytes < 1024.0:
-            return f"{size_bytes:.1f} {unit}"
-        size_bytes /= 1024.0
-    return f"{size_bytes:.1f} PB"
-
-
-def format_watch_status(status: str) -> str:
-    """
-    Format watch status with Rich markup colors.
-
-    Args:
-        status: Watch status (watched, unwatched, watched_by_other)
-
-    Returns:
-        Colored status string with Rich markup
-    """
-    status_colors = {
-        "watched": "[green]✓ Watched[/green]",
-        "unwatched": "[red]✗ Unwatched[/red]",
-        "watched_by_other": "[yellow]👤 Watched[/yellow]",
-    }
-    return status_colors.get(status, "[dim]Unknown[/dim]")
-
-
-def format_date(date_obj: Optional[datetime]) -> str:
-    """
-    Format datetime object to human readable format.
-
-    Args:
-        date_obj: Datetime object or None
-
-    Returns:
-        Formatted date string in "YYYY-MM-DD" format or "N/A"
-    """
-    if not date_obj:
-        return "N/A"
-    return date_obj.strftime("%Y-%m-%d")
 
 
 def parse_file_size(size_str: str) -> int:
@@ -187,6 +135,37 @@ def validate_and_parse_options(sort_by: str, min_filesize: Optional[str], logger
     return sort_by, min_filesize_bytes
 
 
+def _matches_watch_status_filter(
+    movie_status: str, watched_only: bool, unwatched_only: bool, watched_by_other_only: bool
+) -> bool:
+    """Check if movie matches watch status filters (helper)."""
+    if not (watched_only or unwatched_only or watched_by_other_only):
+        return True
+
+    return (
+        (watched_only and movie_status == "watched") or
+        (unwatched_only and movie_status == "unwatched") or
+        (watched_by_other_only and movie_status == "watched_by_other")
+    )
+
+
+def _meets_days_watched_requirement(movie: Dict[str, Any], days_watched: Optional[int]) -> bool:
+    """Check if movie meets days watched requirement (helper)."""
+    if days_watched is None:
+        return True
+
+    days_since = movie.get("days_since_watched")
+    return days_since is not None and days_since >= days_watched
+
+
+def _meets_filesize_requirement(movie: Dict[str, Any], min_filesize_bytes: Optional[int]) -> bool:
+    """Check if movie meets filesize requirement (helper)."""
+    if min_filesize_bytes is None:
+        return True
+
+    return movie.get("file_size", 0) >= min_filesize_bytes
+
+
 def apply_movie_filters(
     movies: List[Dict[str, Any]],
     watched_only: bool = False,
@@ -218,40 +197,22 @@ def apply_movie_filters(
     for movie in movies:
         # For remove mode, only consider movies watched by the correct user
         if remove_mode:
-            if (
-                movie.get("watch_status") != "watched"
-                or movie.get("days_since_watched") is None
-                or (days_watched is not None and movie.get("days_since_watched") < days_watched)
-            ):
+            if (movie.get("watch_status") != "watched" or
+                not _meets_days_watched_requirement(movie, days_watched)):
                 continue
         else:
-            # Watch status filtering for list mode (additive)
-            watch_status_filters_applied = watched_only or unwatched_only or watched_by_other_only
-            if watch_status_filters_applied:
-                movie_status = movie.get("watch_status")
-                status_matches = False
+            # Apply watch status and days watched filters for list mode
+            if not _matches_watch_status_filter(
+                movie.get("watch_status", ""), watched_only, unwatched_only, watched_by_other_only
+            ):
+                continue
 
-                if watched_only and movie_status == "watched":
-                    status_matches = True
-                if unwatched_only and movie_status == "unwatched":
-                    status_matches = True
-                if watched_by_other_only and movie_status == "watched_by_other":
-                    status_matches = True
-
-                if not status_matches:
-                    continue
-
-            # Days watched filtering for list mode
-            if days_watched is not None:
-                days_since = movie.get("days_since_watched")
-                if days_since is None or days_since < days_watched:
-                    continue
+            if not _meets_days_watched_requirement(movie, days_watched):
+                continue
 
         # File size filtering (common to both modes)
-        if min_filesize_bytes is not None:
-            file_size = movie.get("file_size", 0)
-            if file_size < min_filesize_bytes:
-                continue
+        if not _meets_filesize_requirement(movie, min_filesize_bytes):
+            continue
 
         filtered_movies.append(movie)
 
@@ -484,7 +445,7 @@ def list_movies(
                 str(movie.get("title", "N/A")),
                 str(movie.get("year", "N/A")),
                 user_display,
-                format_watch_status(movie.get("watch_status", "unknown")),
+                format_movie_watch_status(movie.get("watch_status", "unknown")),
                 watched_by,
                 days_ago,
                 format_file_size(movie.get("file_size", 0)),
