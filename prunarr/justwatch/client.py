@@ -76,11 +76,21 @@ class JustWatchClient:
         if self.logger:
             self.logger.debug(f"JustWatch GraphQL request: {json.dumps(variables)}")
 
+        # Headers required by JustWatch API to prevent 403
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/json",
+            "Accept-Language": f"{self.language}-{self.country},{self.language};q=0.9,en;q=0.8",
+            "Origin": "https://www.justwatch.com",
+            "Referer": "https://www.justwatch.com/",
+        }
+
         try:
             response = requests.post(
                 self.GRAPHQL_URL,
                 json=payload,
-                headers={"Content-Type": "application/json"},
+                headers=headers,
                 timeout=self.DEFAULT_TIMEOUT,
             )
 
