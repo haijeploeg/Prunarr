@@ -297,12 +297,14 @@ class TestPrunArrIntegration:
         prunarr = PrunArr(settings)
 
         # Mock get_movies_with_watch_status to return test data
-        prunarr.get_movies_with_watch_status = Mock(return_value=[
-            {"watch_status": "watched", "days_since_watched": 70, "title": "Movie 1"},
-            {"watch_status": "watched", "days_since_watched": 50, "title": "Movie 2"},
-            {"watch_status": "unwatched", "days_since_watched": None, "title": "Movie 3"},
-            {"watch_status": "watched", "days_since_watched": 100, "title": "Movie 4"},
-        ])
+        prunarr.get_movies_with_watch_status = Mock(
+            return_value=[
+                {"watch_status": "watched", "days_since_watched": 70, "title": "Movie 1"},
+                {"watch_status": "watched", "days_since_watched": 50, "title": "Movie 2"},
+                {"watch_status": "unwatched", "days_since_watched": None, "title": "Movie 3"},
+                {"watch_status": "watched", "days_since_watched": 100, "title": "Movie 4"},
+            ]
+        )
 
         # Get movies ready for removal (60+ days)
         movies = prunarr.get_movies_ready_for_removal(days_watched=60)
@@ -472,10 +474,12 @@ class TestPrunArrIntegration:
         )
         prunarr = PrunArr(settings)
 
-        prunarr.get_all_sonarr_series = Mock(return_value=[
-            {"id": 123, "title": "Series 1"},
-            {"id": 456, "title": "Series 2"},
-        ])
+        prunarr.get_all_sonarr_series = Mock(
+            return_value=[
+                {"id": 123, "title": "Series 1"},
+                {"id": 456, "title": "Series 2"},
+            ]
+        )
 
         result = prunarr.find_series_by_identifier("123")
         assert len(result) == 1
@@ -496,11 +500,13 @@ class TestPrunArrIntegration:
         )
         prunarr = PrunArr(settings)
 
-        prunarr.get_all_sonarr_series = Mock(return_value=[
-            {"id": 1, "title": "Breaking Bad"},
-            {"id": 2, "title": "Better Call Saul"},
-            {"id": 3, "title": "Breaking Benjamin"},
-        ])
+        prunarr.get_all_sonarr_series = Mock(
+            return_value=[
+                {"id": 1, "title": "Breaking Bad"},
+                {"id": 2, "title": "Better Call Saul"},
+                {"id": 3, "title": "Breaking Benjamin"},
+            ]
+        )
 
         # Exact match
         result = prunarr.find_series_by_identifier("breaking bad")
@@ -522,7 +528,9 @@ class TestCriticalMovieLogic:
     @patch("prunarr.prunarr.RadarrAPI")
     @patch("prunarr.prunarr.SonarrAPI")
     @patch("prunarr.prunarr.TautulliAPI")
-    def test_get_movies_with_watch_status_integration(self, mock_tautulli, mock_sonarr, mock_radarr):
+    def test_get_movies_with_watch_status_integration(
+        self, mock_tautulli, mock_sonarr, mock_radarr
+    ):
         """CRITICAL: Test complete movie watch status workflow."""
         settings = Settings(
             radarr_api_key="test",
@@ -616,18 +624,25 @@ class TestCriticalMovieLogic:
         prunarr = PrunArr(settings)
 
         # Mock: Movies with different watch statuses
-        prunarr.get_movies_with_watch_status = Mock(return_value=[
-            # Should be removed (watched by requester, 70 days ago)
-            {"id": 1, "watch_status": "watched", "days_since_watched": 70, "user": "alice"},
-            # Should NOT be removed (watched by others)
-            {"id": 2, "watch_status": "watched_by_other", "days_since_watched": 70, "user": "alice"},
-            # Should NOT be removed (not watched yet)
-            {"id": 3, "watch_status": "unwatched", "days_since_watched": None, "user": "alice"},
-            # Should NOT be removed (watched too recently - 30 days)
-            {"id": 4, "watch_status": "watched", "days_since_watched": 30, "user": "alice"},
-            # Should be removed (watched by requester, 100 days ago)
-            {"id": 5, "watch_status": "watched", "days_since_watched": 100, "user": "alice"},
-        ])
+        prunarr.get_movies_with_watch_status = Mock(
+            return_value=[
+                # Should be removed (watched by requester, 70 days ago)
+                {"id": 1, "watch_status": "watched", "days_since_watched": 70, "user": "alice"},
+                # Should NOT be removed (watched by others)
+                {
+                    "id": 2,
+                    "watch_status": "watched_by_other",
+                    "days_since_watched": 70,
+                    "user": "alice",
+                },
+                # Should NOT be removed (not watched yet)
+                {"id": 3, "watch_status": "unwatched", "days_since_watched": None, "user": "alice"},
+                # Should NOT be removed (watched too recently - 30 days)
+                {"id": 4, "watch_status": "watched", "days_since_watched": 30, "user": "alice"},
+                # Should be removed (watched by requester, 100 days ago)
+                {"id": 5, "watch_status": "watched", "days_since_watched": 100, "user": "alice"},
+            ]
+        )
 
         # Execute with 60-day threshold
         movies_to_remove = prunarr.get_movies_ready_for_removal(days_watched=60)
@@ -726,7 +741,7 @@ class TestCriticalErrorHandling:
 
         mock_response = Mock()
         mock_response.status_code = 404
-        mock_response.headers.get.return_value = 'application/json'
+        mock_response.headers.get.return_value = "application/json"
         mock_get.return_value = mock_response
 
         api = TautulliAPI("http://localhost:8181", "test-key")
@@ -754,7 +769,7 @@ class TestCriticalErrorHandling:
 
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.headers.get.return_value = 'text/html'
+        mock_response.headers.get.return_value = "text/html"
         mock_get.return_value = mock_response
 
         api = TautulliAPI("http://localhost:8181", "test-key")

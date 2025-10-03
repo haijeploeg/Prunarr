@@ -42,7 +42,9 @@ class PrunArrLogger:
         "ERROR": 3,
     }
 
-    def __init__(self, name: str = "prunarr", debug: bool = False, log_level: str = "ERROR") -> None:
+    def __init__(
+        self, name: str = "prunarr", debug: bool = False, log_level: str = "ERROR"
+    ) -> None:
         """
         Initialize the PrunArr logger with configuration options.
 
@@ -246,7 +248,9 @@ class PrunArrLogger:
         self.console.print(formatted_msg)
 
 
-def get_logger(name: str = "prunarr", debug: bool = False, log_level: str = "ERROR") -> PrunArrLogger:
+def get_logger(
+    name: str = "prunarr", debug: bool = False, log_level: str = "ERROR"
+) -> PrunArrLogger:
     """
     Factory function to create and configure PrunArr logger instances.
 

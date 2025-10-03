@@ -13,7 +13,14 @@ from typing import Optional
 import typer
 from rich.console import Console
 from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeElapsedColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TaskProgressColumn,
+    TimeElapsedColumn,
+)
 
 from prunarr.config import Settings
 from prunarr.logger import get_logger
@@ -32,7 +39,7 @@ def init_cache(
         False,
         "--full",
         "-f",
-        help="Pre-fetch ALL data including episodes for each series (slower, but fully cached)"
+        help="Pre-fetch ALL data including episodes for each series (slower, but fully cached)",
     ),
 ):
     """
@@ -192,7 +199,9 @@ def init_cache(
                 with ThreadPoolExecutor(max_workers=5) as ep_executor:
                     # Submit episode fetch tasks
                     ep_futures = {
-                        ep_executor.submit(prunarr.sonarr.get_episodes_by_series_id, series_id): series_id
+                        ep_executor.submit(
+                            prunarr.sonarr.get_episodes_by_series_id, series_id
+                        ): series_id
                         for series_id in series_ids
                     }
 
@@ -274,7 +283,7 @@ def cache_status(
                     "movies_seconds": settings.cache_ttl_movies,
                     "series_seconds": settings.cache_ttl_series,
                     "history_seconds": settings.cache_ttl_history,
-                }
+                },
             }
 
             # Parse last accessed
@@ -292,7 +301,9 @@ def cache_status(
             table.add_column("Property", style="cyan")
             table.add_column("Value", style="white")
 
-            table.add_row("Status", "[green]Enabled[/green]" if stats["enabled"] else "[red]Disabled[/red]")
+            table.add_row(
+                "Status", "[green]Enabled[/green]" if stats["enabled"] else "[red]Disabled[/red]"
+            )
             table.add_row("Cache Directory", str(stats.get("cache_dir", "N/A")))
             table.add_row("Total Size", f"{stats.get('size_mb', 0)} MB")
             table.add_row("Cached Files", str(stats.get("file_count", 0)))
@@ -309,9 +320,11 @@ def cache_status(
             console.print(table)
 
             # Show TTL settings
-            logger.info(f"TTL Settings: Movies={settings.cache_ttl_movies}s, "
-                       f"Series={settings.cache_ttl_series}s, "
-                       f"History={settings.cache_ttl_history}s")
+            logger.info(
+                f"TTL Settings: Movies={settings.cache_ttl_movies}s, "
+                f"Series={settings.cache_ttl_series}s, "
+                f"History={settings.cache_ttl_history}s"
+            )
 
     except Exception as e:
         logger.error(f"Failed to get cache status: {str(e)}")
@@ -322,14 +335,13 @@ def cache_status(
 def clear_cache(
     ctx: typer.Context,
     cache_type: Optional[str] = typer.Option(
-        None, "--type", "-t", help="Cache type to clear (movies, series, history, tags, metadata, all)"
+        None,
+        "--type",
+        "-t",
+        help="Cache type to clear (movies, series, history, tags, metadata, all)",
     ),
-    expired_only: bool = typer.Option(
-        False, "--expired", help="Clear only expired entries"
-    ),
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Skip confirmation prompt"
-    ),
+    expired_only: bool = typer.Option(False, "--expired", help="Clear only expired entries"),
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt"),
 ):
     """
     [bold cyan]Clear cached data.[/bold cyan]
@@ -551,7 +563,9 @@ def refresh_cache(
                     with ThreadPoolExecutor(max_workers=10) as meta_executor:
                         # Submit metadata fetch tasks
                         meta_futures = {
-                            meta_executor.submit(prunarr.tautulli.get_metadata, rating_key): rating_key
+                            meta_executor.submit(
+                                prunarr.tautulli.get_metadata, rating_key
+                            ): rating_key
                             for rating_key in unique_rating_keys
                         }
 

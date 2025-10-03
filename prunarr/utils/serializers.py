@@ -53,16 +53,16 @@ def prepare_movie_for_json(movie: Dict[str, Any]) -> Dict[str, Any]:
         '2024-01-15T00:00:00'
     """
     return {
-        'id': movie.get('id'),
-        'title': movie.get('title'),
-        'year': movie.get('year'),
-        'username': movie.get('username'),
-        'watched': movie.get('watched', False),
-        'watched_by': movie.get('watched_by'),
-        'watched_date': prepare_datetime_for_json(movie.get('watched_date')),
-        'days_watched': movie.get('days_watched'),
-        'filesize': movie.get('filesize'),
-        'added_date': prepare_datetime_for_json(movie.get('added_date')),
+        "id": movie.get("id"),
+        "title": movie.get("title"),
+        "year": movie.get("year"),
+        "username": movie.get("username"),
+        "watched": movie.get("watched", False),
+        "watched_by": movie.get("watched_by"),
+        "watched_date": prepare_datetime_for_json(movie.get("watched_date")),
+        "days_watched": movie.get("days_watched"),
+        "filesize": movie.get("filesize"),
+        "added_date": prepare_datetime_for_json(movie.get("added_date")),
     }
 
 
@@ -91,17 +91,17 @@ def prepare_series_for_json(series: Dict[str, Any]) -> Dict[str, Any]:
         '2024-01-15T00:00:00'
     """
     return {
-        'id': series.get('id'),
-        'title': series.get('title'),
-        'user': series.get('user'),
-        'watch_status': series.get('watch_status'),
-        'watched_episodes': series.get('watched_episodes', 0),
-        'total_episodes': series.get('total_episodes', 0),
-        'completion_percentage': series.get('completion_percentage', 0),
-        'seasons': series.get('available_seasons', ''),
-        'total_size_bytes': series.get('total_size_on_disk', 0),
-        'last_watched': prepare_datetime_for_json(series.get('most_recent_watch')),
-        'days_since_watched': series.get('days_since_watched'),
+        "id": series.get("id"),
+        "title": series.get("title"),
+        "user": series.get("user"),
+        "watch_status": series.get("watch_status"),
+        "watched_episodes": series.get("watched_episodes", 0),
+        "total_episodes": series.get("total_episodes", 0),
+        "completion_percentage": series.get("completion_percentage", 0),
+        "seasons": series.get("available_seasons", ""),
+        "total_size_bytes": series.get("total_size_on_disk", 0),
+        "last_watched": prepare_datetime_for_json(series.get("most_recent_watch")),
+        "days_since_watched": series.get("days_since_watched"),
     }
 
 
@@ -131,20 +131,20 @@ def prepare_history_for_json(history: Dict[str, Any]) -> Dict[str, Any]:
     from prunarr.utils.parsers import safe_timestamp_to_datetime
 
     # Convert watched_at timestamp to datetime, then to ISO string
-    watched_at_dt = safe_timestamp_to_datetime(history.get('watched_at'))
+    watched_at_dt = safe_timestamp_to_datetime(history.get("watched_at"))
 
     return {
-        'history_id': history.get('history_id'),
-        'title': history.get('title'),
-        'user': history.get('user'),
-        'media_type': history.get('media_type'),
-        'watched_status': history.get('watched_status'),
-        'percent_complete': history.get('percent_complete'),
-        'duration': history.get('duration'),
-        'watched_at': prepare_datetime_for_json(watched_at_dt),
-        'platform': history.get('platform'),
-        'year': history.get('year'),
-        'rating_key': history.get('rating_key'),
+        "history_id": history.get("history_id"),
+        "title": history.get("title"),
+        "user": history.get("user"),
+        "media_type": history.get("media_type"),
+        "watched_status": history.get("watched_status"),
+        "percent_complete": history.get("percent_complete"),
+        "duration": history.get("duration"),
+        "watched_at": prepare_datetime_for_json(watched_at_dt),
+        "platform": history.get("platform"),
+        "year": history.get("year"),
+        "rating_key": history.get("rating_key"),
     }
 
 
@@ -172,16 +172,16 @@ def prepare_episode_for_json(episode: Dict[str, Any]) -> Dict[str, Any]:
         '2024-01-15T00:00:00'
     """
     return {
-        'id': episode.get('id'),
-        'season_number': episode.get('seasonNumber'),
-        'episode_number': episode.get('episodeNumber'),
-        'title': episode.get('title'),
-        'air_date': prepare_datetime_for_json(episode.get('airDate')),
-        'runtime': episode.get('runtime'),
-        'watched': episode.get('watched', False),
-        'watched_by': episode.get('watched_by'),
-        'watched_date': prepare_datetime_for_json(episode.get('watched_date')),
-        'filesize': episode.get('filesize', 0),
+        "id": episode.get("id"),
+        "season_number": episode.get("seasonNumber"),
+        "episode_number": episode.get("episodeNumber"),
+        "title": episode.get("title"),
+        "air_date": prepare_datetime_for_json(episode.get("airDate")),
+        "runtime": episode.get("runtime"),
+        "watched": episode.get("watched", False),
+        "watched_by": episode.get("watched_by"),
+        "watched_date": prepare_datetime_for_json(episode.get("watched_date")),
+        "filesize": episode.get("filesize", 0),
     }
 
 
@@ -208,13 +208,10 @@ def prepare_season_for_json(season: Dict[str, Any]) -> Dict[str, Any]:
         1
     """
     return {
-        'season_number': season.get('season_number'),
-        'total_episodes': season.get('total_episodes', 0),
-        'watched_episodes': season.get('watched_episodes', 0),
-        'progress_percent': season.get('progress_percent', 0.0),
-        'total_filesize': season.get('total_filesize', 0),
-        'episodes': [
-            prepare_episode_for_json(ep)
-            for ep in season.get('episodes', [])
-        ],
+        "season_number": season.get("season_number"),
+        "total_episodes": season.get("total_episodes", 0),
+        "watched_episodes": season.get("watched_episodes", 0),
+        "progress_percent": season.get("progress_percent", 0.0),
+        "total_filesize": season.get("total_filesize", 0),
+        "episodes": [prepare_episode_for_json(ep) for ep in season.get("episodes", [])],
     }

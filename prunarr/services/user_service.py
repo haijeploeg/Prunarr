@@ -31,9 +31,7 @@ class UserService:
         """
         self.tag_pattern = re.compile(user_tag_regex)
 
-    def extract_username_from_tags(
-        self, tag_ids: List[int], api_client
-    ) -> Optional[str]:
+    def extract_username_from_tags(self, tag_ids: List[int], api_client) -> Optional[str]:
         """
         Extract username from media tags using configured regex pattern.
 

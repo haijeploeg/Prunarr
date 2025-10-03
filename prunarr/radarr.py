@@ -49,7 +49,14 @@ class RadarrAPI:
         cache_manager: Optional cache manager for performance optimization
     """
 
-    def __init__(self, url: str, api_key: str, cache_manager: Optional["CacheManager"] = None, debug: bool = False, log_level: str = "ERROR") -> None:
+    def __init__(
+        self,
+        url: str,
+        api_key: str,
+        cache_manager: Optional["CacheManager"] = None,
+        debug: bool = False,
+        log_level: str = "ERROR",
+    ) -> None:
         """
         Initialize the Radarr API client with server connection details.
 
@@ -101,7 +108,12 @@ class RadarrAPI:
             Exception: If API communication fails or authentication is invalid
         """
         # Only cache when retrieving all movies
-        if movie_id is None and not kwargs and self.cache_manager and self.cache_manager.is_enabled():
+        if (
+            movie_id is None
+            and not kwargs
+            and self.cache_manager
+            and self.cache_manager.is_enabled()
+        ):
             self.logger.debug("Fetching all movies (with cache)")
             result = self.cache_manager.get_radarr_movies(lambda: self._api.get_movie(**kwargs))
             self.logger.debug(f"Retrieved {len(result)} movies from Radarr")
@@ -110,12 +122,16 @@ class RadarrAPI:
         if movie_id is not None:
             self.logger.debug(f"Fetching specific movie: ID={movie_id}")
             result = self._api.get_movie(movie_id, **kwargs)
-            self.logger.debug(f"Retrieved movie: {result.get('title', 'N/A') if isinstance(result, dict) else len(result)} items")
+            self.logger.debug(
+                f"Retrieved movie: {result.get('title', 'N/A') if isinstance(result, dict) else len(result)} items"
+            )
             return result
 
         self.logger.debug(f"Fetching movies with kwargs: {kwargs}")
         result = self._api.get_movie(**kwargs)
-        self.logger.debug(f"Retrieved {len(result) if isinstance(result, list) else 1} movies from Radarr")
+        self.logger.debug(
+            f"Retrieved {len(result) if isinstance(result, list) else 1} movies from Radarr"
+        )
         return result
 
     def get_tag(self, tag_id: int) -> Dict[str, Any]:

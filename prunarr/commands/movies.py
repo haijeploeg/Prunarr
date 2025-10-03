@@ -30,8 +30,6 @@ console = Console()
 app = typer.Typer(help="Manage movies in Radarr.", rich_markup_mode="rich")
 
 
-
-
 def sort_movies(
     movies: List[Dict[str, Any]], sort_by: str, desc: bool = False
 ) -> List[Dict[str, Any]]:
@@ -107,9 +105,9 @@ def _matches_watch_status_filter(
         return True
 
     return (
-        (watched_only and movie_status == "watched") or
-        (unwatched_only and movie_status == "unwatched") or
-        (watched_by_other_only and movie_status == "watched_by_other")
+        (watched_only and movie_status == "watched")
+        or (unwatched_only and movie_status == "unwatched")
+        or (watched_by_other_only and movie_status == "watched_by_other")
     )
 
 
@@ -161,8 +159,9 @@ def apply_movie_filters(
     for movie in movies:
         # For remove mode, only consider movies watched by the correct user
         if remove_mode:
-            if (movie.get("watch_status") != "watched" or
-                not _meets_days_watched_requirement(movie, days_watched)):
+            if movie.get("watch_status") != "watched" or not _meets_days_watched_requirement(
+                movie, days_watched
+            ):
                 continue
         else:
             # Apply watch status and days watched filters for list mode
@@ -351,10 +350,7 @@ def list_movies(
 
         # Check and log cache status
         if prunarr.cache_manager:
-            prunarr.check_and_log_cache_status(
-                prunarr.cache_manager.KEY_RADARR_MOVIES,
-                logger
-            )
+            prunarr.check_and_log_cache_status(prunarr.cache_manager.KEY_RADARR_MOVIES, logger)
 
         # Apply filtering using shared function
         filtered_movies = apply_movie_filters(
@@ -386,20 +382,24 @@ def list_movies(
             # Prepare JSON-serializable data using shared serializer
             json_output = []
             for movie in filtered_movies:
-                json_output.append({
-                    "id": movie.get("id"),
-                    "title": movie.get("title"),
-                    "year": movie.get("year"),
-                    "user": movie.get("user"),
-                    "watch_status": movie.get("watch_status"),
-                    "watched_by": movie.get("watched_by"),
-                    "days_since_watched": movie.get("days_since_watched"),
-                    "file_size_bytes": movie.get("file_size", 0),
-                    "added": prepare_datetime_for_json(parse_iso_datetime(movie.get("added"))),
-                    "most_recent_watch": prepare_datetime_for_json(movie.get("most_recent_watch")),
-                    "imdb_id": movie.get("imdb_id"),
-                    "tmdb_id": movie.get("tmdb_id"),
-                })
+                json_output.append(
+                    {
+                        "id": movie.get("id"),
+                        "title": movie.get("title"),
+                        "year": movie.get("year"),
+                        "user": movie.get("user"),
+                        "watch_status": movie.get("watch_status"),
+                        "watched_by": movie.get("watched_by"),
+                        "days_since_watched": movie.get("days_since_watched"),
+                        "file_size_bytes": movie.get("file_size", 0),
+                        "added": prepare_datetime_for_json(parse_iso_datetime(movie.get("added"))),
+                        "most_recent_watch": prepare_datetime_for_json(
+                            movie.get("most_recent_watch")
+                        ),
+                        "imdb_id": movie.get("imdb_id"),
+                        "tmdb_id": movie.get("tmdb_id"),
+                    }
+                )
             print(json.dumps(json_output, indent=2))
         else:
             # Create Rich table using factory
@@ -663,9 +663,7 @@ def remove_movies(
             except Exception as e:
                 logger.error(f"Error removing {title}: {str(e)}")
 
-        logger.info(
-            f"Successfully removed {removed_count} out of {len(movies_to_remove)} movies"
-        )
+        logger.info(f"Successfully removed {removed_count} out of {len(movies_to_remove)} movies")
 
     except Exception as e:
         logger.error(f"Failed during movie removal process: {str(e)}")

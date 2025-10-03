@@ -114,9 +114,9 @@ class MediaMatcher:
                 watch_lookup[series_key][episode_key] = {}
 
             # Track each user's most recent watch of this episode
-            if user not in watch_lookup[series_key][episode_key] or int(
-                watched_at
-            ) > int(watch_lookup[series_key][episode_key][user]["watched_at"]):
+            if user not in watch_lookup[series_key][episode_key] or int(watched_at) > int(
+                watch_lookup[series_key][episode_key][user]["watched_at"]
+            ):
                 watch_lookup[series_key][episode_key][user] = {
                     "watched_at": watched_at,
                     "season_num": season_num,

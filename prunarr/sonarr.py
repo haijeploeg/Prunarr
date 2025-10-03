@@ -53,7 +53,14 @@ class SonarrAPI:
         cache_manager: Optional cache manager for performance optimization
     """
 
-    def __init__(self, url: str, api_key: str, cache_manager: Optional["CacheManager"] = None, debug: bool = False, log_level: str = "ERROR") -> None:
+    def __init__(
+        self,
+        url: str,
+        api_key: str,
+        cache_manager: Optional["CacheManager"] = None,
+        debug: bool = False,
+        log_level: str = "ERROR",
+    ) -> None:
         """
         Initialize the Sonarr API client with server connection details.
 
@@ -106,7 +113,12 @@ class SonarrAPI:
             Exception: If API communication fails or authentication is invalid
         """
         # Only cache when retrieving all series
-        if series_id is None and not kwargs and self.cache_manager and self.cache_manager.is_enabled():
+        if (
+            series_id is None
+            and not kwargs
+            and self.cache_manager
+            and self.cache_manager.is_enabled()
+        ):
             return self.cache_manager.get_sonarr_series(lambda: self._api.get_series(**kwargs))
 
         if series_id is not None:
@@ -209,7 +221,9 @@ class SonarrAPI:
         """
         # Use cache if available
         if self.cache_manager and self.cache_manager.is_enabled():
-            return self.cache_manager.get_sonarr_episodes(series_id, lambda: self._fetch_episodes(series_id))
+            return self.cache_manager.get_sonarr_episodes(
+                series_id, lambda: self._fetch_episodes(series_id)
+            )
 
         return self._fetch_episodes(series_id)
 

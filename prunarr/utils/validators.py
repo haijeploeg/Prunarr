@@ -33,7 +33,7 @@ def validate_filesize_string(size_str: str) -> Optional[int]:
         return None
 
     # Match number with optional decimal and unit
-    match = re.match(r'^(\d+(?:\.\d+)?)\s*([KMGT]?B)$', size_str.upper().strip())
+    match = re.match(r"^(\d+(?:\.\d+)?)\s*([KMGT]?B)$", size_str.upper().strip())
     if not match:
         return None
 
@@ -41,11 +41,11 @@ def validate_filesize_string(size_str: str) -> Optional[int]:
     value = float(value)
 
     units = {
-        'B': 1,
-        'KB': 1024,
-        'MB': 1024 ** 2,
-        'GB': 1024 ** 3,
-        'TB': 1024 ** 4,
+        "B": 1,
+        "KB": 1024,
+        "MB": 1024**2,
+        "GB": 1024**3,
+        "TB": 1024**4,
     }
 
     multiplier = units.get(unit, 1)
@@ -68,7 +68,7 @@ def validate_episode_key_format(episode_key: str) -> bool:
         >>> validate_episode_key_format('invalid')
         False
     """
-    pattern = r'^s\d+e\d+$'
+    pattern = r"^s\d+e\d+$"
     return bool(re.match(pattern, episode_key.lower()))
 
 
@@ -172,10 +172,7 @@ def validate_output_format(output: str, logger) -> None:
 
 
 def validate_sort_option(
-    sort_by: str,
-    valid_options: List[str],
-    logger,
-    option_name: str = "sort option"
+    sort_by: str, valid_options: List[str], logger, option_name: str = "sort option"
 ) -> None:
     """
     Validate sort option against list of valid options.

@@ -71,7 +71,7 @@ class PrunArr:
         """
         self.settings = settings
         # Get log level from settings, but --debug flag always overrides
-        log_level = settings.log_level if hasattr(settings, 'log_level') else "ERROR"
+        log_level = settings.log_level if hasattr(settings, "log_level") else "ERROR"
         self.logger = get_logger("prunarr.core", debug=debug, log_level=log_level)
 
         # Initialize cache manager from settings
@@ -85,17 +85,41 @@ class PrunArr:
             ttl_metadata=settings.cache_ttl_metadata,
             max_size_mb=settings.cache_max_size_mb,
         )
-        self.cache_manager = CacheManager(cache_config, debug=debug, log_level=log_level) if cache_config.enabled else None
+        self.cache_manager = (
+            CacheManager(cache_config, debug=debug, log_level=log_level)
+            if cache_config.enabled
+            else None
+        )
 
         if self.cache_manager:
-            self.logger.debug(f"Cache enabled: {cache_config.cache_dir} (TTL: movies={cache_config.ttl_movies}s, series={cache_config.ttl_series}s, history={cache_config.ttl_history}s)")
+            self.logger.debug(
+                f"Cache enabled: {cache_config.cache_dir} (TTL: movies={cache_config.ttl_movies}s, series={cache_config.ttl_series}s, history={cache_config.ttl_history}s)"
+            )
         else:
             self.logger.debug("Cache disabled")
 
         # Initialize API clients with cache manager, debug flag, and log level
-        self.radarr = RadarrAPI(settings.radarr_url, settings.radarr_api_key, self.cache_manager, debug=debug, log_level=log_level)
-        self.sonarr = SonarrAPI(settings.sonarr_url, settings.sonarr_api_key, self.cache_manager, debug=debug, log_level=log_level)
-        self.tautulli = TautulliAPI(settings.tautulli_url, settings.tautulli_api_key, self.cache_manager, debug=debug, log_level=log_level)
+        self.radarr = RadarrAPI(
+            settings.radarr_url,
+            settings.radarr_api_key,
+            self.cache_manager,
+            debug=debug,
+            log_level=log_level,
+        )
+        self.sonarr = SonarrAPI(
+            settings.sonarr_url,
+            settings.sonarr_api_key,
+            self.cache_manager,
+            debug=debug,
+            log_level=log_level,
+        )
+        self.tautulli = TautulliAPI(
+            settings.tautulli_url,
+            settings.tautulli_api_key,
+            self.cache_manager,
+            debug=debug,
+            log_level=log_level,
+        )
         self.tag_pattern = re.compile(settings.user_tag_regex)
 
         # Initialize service layer
@@ -171,7 +195,6 @@ class PrunArr:
         # Delegate to user service for tag extraction
         return self.user_service.extract_username_from_tags(tag_ids, api_client)
 
-
     def get_all_radarr_movies(self, include_untagged: bool = True) -> List[Dict[str, Any]]:
         """
         Get all Radarr movies with enhanced information.
@@ -244,13 +267,17 @@ class PrunArr:
         Returns:
             List of movies with watch status, last watched date, and days since watched
         """
-        self.logger.debug(f"get_movies_with_watch_status: include_untagged={include_untagged}, username_filter={username_filter}")
+        self.logger.debug(
+            f"get_movies_with_watch_status: include_untagged={include_untagged}, username_filter={username_filter}"
+        )
 
         all_movies = self.get_all_radarr_movies(include_untagged=include_untagged)
         self.logger.debug(f"Retrieved {len(all_movies)} movies from Radarr")
 
         tautulli_history = self.tautulli.get_movie_completed_history()
-        self.logger.debug(f"Retrieved {len(tautulli_history)} movie watch history records from Tautulli")
+        self.logger.debug(
+            f"Retrieved {len(tautulli_history)} movie watch history records from Tautulli"
+        )
 
         watch_lookup = self._build_movie_watch_lookup(tautulli_history)
         self.logger.debug(f"Built watch lookup for {len(watch_lookup)} unique movies")
@@ -281,14 +308,16 @@ class PrunArr:
                 movie.get("user"), all_watchers
             )
 
-            movies_with_status.append({
-                **movie,
-                "watch_status": watch_status,
-                "watched_by": watched_by_display,
-                "watched_at": watched_date,
-                "days_since_watched": days_since_watched,
-                "all_watchers": all_watchers,
-            })
+            movies_with_status.append(
+                {
+                    **movie,
+                    "watch_status": watch_status,
+                    "watched_by": watched_by_display,
+                    "watched_at": watched_date,
+                    "days_since_watched": days_since_watched,
+                    "all_watchers": all_watchers,
+                }
+            )
 
         return movies_with_status
 
@@ -305,12 +334,12 @@ class PrunArr:
         movies_with_status = self.get_movies_with_watch_status(include_untagged=False)
 
         return [
-            movie for movie in movies_with_status
+            movie
+            for movie in movies_with_status
             if movie.get("watch_status") == "watched"
             and movie.get("days_since_watched") is not None
             and movie.get("days_since_watched") >= days_watched
         ]
-
 
     # Episode watch lookup helpers
 
@@ -331,7 +360,10 @@ class PrunArr:
         return self.media_matcher.build_episode_watch_lookup(tautulli_history, series_tvdb_cache)
 
     def _count_watched_episodes(
-        self, series_watch_info: Dict[str, Dict], series_user: Optional[str], season_filter: Optional[int] = None
+        self,
+        series_watch_info: Dict[str, Dict],
+        series_user: Optional[str],
+        season_filter: Optional[int] = None,
     ) -> int:
         """
         Count episodes watched by a specific user (helper).
@@ -345,9 +377,13 @@ class PrunArr:
             Number of episodes watched by the user
         """
         # Delegate to watch calculator service
-        return self.watch_calculator.count_watched_episodes(series_watch_info, series_user, season_filter)
+        return self.watch_calculator.count_watched_episodes(
+            series_watch_info, series_user, season_filter
+        )
 
-    def _calculate_most_recent_watch(self, series_watch_info: Dict[str, Dict]) -> tuple[Optional[datetime], Optional[int]]:
+    def _calculate_most_recent_watch(
+        self, series_watch_info: Dict[str, Dict]
+    ) -> tuple[Optional[datetime], Optional[int]]:
         """
         Calculate most recent watch date and days since (helper).
 
@@ -409,9 +445,9 @@ class PrunArr:
         for season in seasons_metadata:
             season_num = season.get("seasonNumber", 0)
             total_episode_count = (
-                season.get("totalEpisodeCount", 0) or
-                season.get("episodeCount", 0) or
-                season.get("statistics", {}).get("totalEpisodeCount", 0)
+                season.get("totalEpisodeCount", 0)
+                or season.get("episodeCount", 0)
+                or season.get("statistics", {}).get("totalEpisodeCount", 0)
             )
 
             episode_file_count = season.get("statistics", {}).get("episodeFileCount", 0)
@@ -448,15 +484,17 @@ class PrunArr:
                 if season_num is not None and episode_num is not None:
                     episode_key = make_episode_key(season_num, episode_num)
                     if episode_key in episode_metadata_lookup:
-                        episode_metadata_lookup[episode_key].update({
-                            "title": ep.get("title", f"Episode {episode_num}"),
-                            "air_date": ep.get("airDate", ep.get("air_date", "")),
-                            "runtime": ep.get("runtime", 0),
-                            "has_file": ep.get("hasFile", ep.get("has_file", False)),
-                            "episode_file_id": ep.get("episodeFileId"),
-                            "overview": ep.get("overview", ""),
-                            "monitored": ep.get("monitored", False),
-                        })
+                        episode_metadata_lookup[episode_key].update(
+                            {
+                                "title": ep.get("title", f"Episode {episode_num}"),
+                                "air_date": ep.get("airDate", ep.get("air_date", "")),
+                                "runtime": ep.get("runtime", 0),
+                                "has_file": ep.get("hasFile", ep.get("has_file", False)),
+                                "episode_file_id": ep.get("episodeFileId"),
+                                "overview": ep.get("overview", ""),
+                                "monitored": ep.get("monitored", False),
+                            }
+                        )
         except Exception:
             pass  # Gracefully handle failures
 
@@ -465,7 +503,7 @@ class PrunArr:
         ep_metadata: Dict,
         episode_watchers: Dict,
         series_user: Optional[str],
-        show_all_watchers: bool
+        show_all_watchers: bool,
     ) -> Dict[str, Any]:
         """Build detailed episode information dictionary (helper)."""
         season_num = ep_metadata.get("season_number")
@@ -502,7 +540,9 @@ class PrunArr:
             "has_file": ep_metadata.get("has_file", False),
             "episode_file_id": ep_metadata.get("episode_file_id"),
             "watched": watched_by_user,
-            "watched_at": episode_watchers.get(series_user, {}).get("watched_at") if watched_by_user else None,
+            "watched_at": (
+                episode_watchers.get(series_user, {}).get("watched_at") if watched_by_user else None
+            ),
             "watched_by": series_user if watched_by_user else "",
             "watch_status": watch_status,
             "watched_by_user": watched_by_user,
@@ -588,7 +628,9 @@ class PrunArr:
         Returns:
             List of series with watch status, episode details, and watch progress
         """
-        self.logger.debug(f"get_series_with_watch_status: include_untagged={include_untagged}, username_filter={username_filter}, series_filter={series_filter}, season_filter={season_filter}")
+        self.logger.debug(
+            f"get_series_with_watch_status: include_untagged={include_untagged}, username_filter={username_filter}, series_filter={series_filter}, season_filter={season_filter}"
+        )
 
         # Get and filter series
         all_series = self.get_all_sonarr_series(include_untagged=include_untagged)
@@ -602,11 +644,15 @@ class PrunArr:
 
         if username_filter:
             all_series = [s for s in all_series if s.get("user") == username_filter]
-            self.logger.debug(f"After username_filter '{username_filter}': {len(all_series)} series")
+            self.logger.debug(
+                f"After username_filter '{username_filter}': {len(all_series)} series"
+            )
 
         # Build watch lookup
         tautulli_history = self.tautulli.get_episode_completed_history()
-        self.logger.debug(f"Retrieved {len(tautulli_history)} episode watch history records from Tautulli")
+        self.logger.debug(
+            f"Retrieved {len(tautulli_history)} episode watch history records from Tautulli"
+        )
 
         series_tvdb_cache = self.tautulli.build_series_metadata_cache(tautulli_history)
         self.logger.debug(f"Built TVDB cache with {len(series_tvdb_cache)} unique series")
@@ -631,7 +677,9 @@ class PrunArr:
 
             # Determine best episode count source
             actual_total_episodes = (
-                total_available_episodes or total_episodes_in_watch_history or total_downloaded_episodes
+                total_available_episodes
+                or total_episodes_in_watch_history
+                or total_downloaded_episodes
             )
 
             # Count watched episodes
@@ -640,10 +688,14 @@ class PrunArr:
             )
 
             # Determine watch status
-            watch_status = self._determine_series_watch_status(total_watched_episodes, actual_total_episodes)
+            watch_status = self._determine_series_watch_status(
+                total_watched_episodes, actual_total_episodes
+            )
 
             # Calculate most recent watch
-            most_recent_watch, days_since_watched = self._calculate_most_recent_watch(series_watch_info)
+            most_recent_watch, days_since_watched = self._calculate_most_recent_watch(
+                series_watch_info
+            )
 
             # Get available seasons string
             available_seasons_str = self._get_available_seasons_str(series_id)
@@ -654,21 +706,23 @@ class PrunArr:
                 for season in series.get("seasons", [])
             )
 
-            series_with_status.append({
-                **series,
-                "watch_status": watch_status,
-                "watched_episodes": total_watched_episodes,
-                "total_episodes": actual_total_episodes,
-                "completion_percentage": (
-                    (total_watched_episodes / actual_total_episodes * 100)
-                    if actual_total_episodes > 0
-                    else 0
-                ),
-                "most_recent_watch": most_recent_watch,
-                "days_since_watched": days_since_watched,
-                "available_seasons": available_seasons_str,
-                "total_size_on_disk": total_size_on_disk,
-            })
+            series_with_status.append(
+                {
+                    **series,
+                    "watch_status": watch_status,
+                    "watched_episodes": total_watched_episodes,
+                    "total_episodes": actual_total_episodes,
+                    "completion_percentage": (
+                        (total_watched_episodes / actual_total_episodes * 100)
+                        if actual_total_episodes > 0
+                        else 0
+                    ),
+                    "most_recent_watch": most_recent_watch,
+                    "days_since_watched": days_since_watched,
+                    "available_seasons": available_seasons_str,
+                    "total_size_on_disk": total_size_on_disk,
+                }
+            )
 
         return series_with_status
 

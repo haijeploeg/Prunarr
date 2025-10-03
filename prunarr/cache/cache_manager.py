@@ -52,7 +52,9 @@ class CacheManager:
         self.last_was_cache_hit = False  # Track if last operation was a cache hit
 
         if config.enabled:
-            self.logger.debug(f"Cache initialized: dir={config.cache_dir}, max_size={config.max_size_mb}MB")
+            self.logger.debug(
+                f"Cache initialized: dir={config.cache_dir}, max_size={config.max_size_mb}MB"
+            )
 
     def _generate_key(self, prefix: str, *args) -> str:
         """
@@ -78,11 +80,7 @@ class CacheManager:
         return self.config.enabled and self.store is not None
 
     def get_or_fetch(
-        self,
-        key_prefix: str,
-        fetch_func: Callable[[], Any],
-        ttl: int,
-        *key_args
+        self, key_prefix: str, fetch_func: Callable[[], Any], ttl: int, *key_args
     ) -> Any:
         """
         Get data from cache or fetch if not available.
@@ -129,11 +127,7 @@ class CacheManager:
         Returns:
             List of movie dictionaries
         """
-        return self.get_or_fetch(
-            self.KEY_RADARR_MOVIES,
-            fetch_func,
-            self.config.ttl_movies
-        )
+        return self.get_or_fetch(self.KEY_RADARR_MOVIES, fetch_func, self.config.ttl_movies)
 
     def get_sonarr_series(self, fetch_func: Callable[[], List[Dict]]) -> List[Dict]:
         """
@@ -145,11 +139,7 @@ class CacheManager:
         Returns:
             List of series dictionaries
         """
-        return self.get_or_fetch(
-            self.KEY_SONARR_SERIES,
-            fetch_func,
-            self.config.ttl_series
-        )
+        return self.get_or_fetch(self.KEY_SONARR_SERIES, fetch_func, self.config.ttl_series)
 
     def get_sonarr_series_detail(self, series_id: int, fetch_func: Callable[[], Dict]) -> Dict:
         """
@@ -163,13 +153,12 @@ class CacheManager:
             Series dictionary with full details
         """
         return self.get_or_fetch(
-            self.KEY_SONARR_SERIES_DETAIL,
-            fetch_func,
-            self.config.ttl_series,
-            series_id
+            self.KEY_SONARR_SERIES_DETAIL, fetch_func, self.config.ttl_series, series_id
         )
 
-    def get_sonarr_episodes(self, series_id: int, fetch_func: Callable[[], List[Dict]]) -> List[Dict]:
+    def get_sonarr_episodes(
+        self, series_id: int, fetch_func: Callable[[], List[Dict]]
+    ) -> List[Dict]:
         """
         Get episodes for a specific series from cache or fetch.
 
@@ -181,10 +170,7 @@ class CacheManager:
             List of episode dictionaries
         """
         return self.get_or_fetch(
-            self.KEY_SONARR_EPISODES,
-            fetch_func,
-            self.config.ttl_series,
-            series_id
+            self.KEY_SONARR_EPISODES, fetch_func, self.config.ttl_series, series_id
         )
 
     def get_radarr_movie_detail(self, movie_id: int, fetch_func: Callable[[], Dict]) -> Dict:
@@ -199,16 +185,11 @@ class CacheManager:
             Movie dictionary with full details
         """
         return self.get_or_fetch(
-            self.KEY_RADARR_MOVIE,
-            fetch_func,
-            self.config.ttl_movies,
-            movie_id
+            self.KEY_RADARR_MOVIE, fetch_func, self.config.ttl_movies, movie_id
         )
 
     def get_tautulli_history(
-        self,
-        fetch_func: Callable[[], List[Dict]],
-        *filter_args
+        self, fetch_func: Callable[[], List[Dict]], *filter_args
     ) -> List[Dict]:
         """
         Get Tautulli watch history from cache or fetch.
@@ -221,10 +202,7 @@ class CacheManager:
             List of history record dictionaries
         """
         return self.get_or_fetch(
-            self.KEY_TAUTULLI_HISTORY,
-            fetch_func,
-            self.config.ttl_history,
-            *filter_args
+            self.KEY_TAUTULLI_HISTORY, fetch_func, self.config.ttl_history, *filter_args
         )
 
     def get_radarr_tag(self, tag_id: int, fetch_func: Callable[[], Dict]) -> Dict:
@@ -238,12 +216,7 @@ class CacheManager:
         Returns:
             Tag dictionary
         """
-        return self.get_or_fetch(
-            self.KEY_RADARR_TAG,
-            fetch_func,
-            self.config.ttl_tags,
-            tag_id
-        )
+        return self.get_or_fetch(self.KEY_RADARR_TAG, fetch_func, self.config.ttl_tags, tag_id)
 
     def get_sonarr_tag(self, tag_id: int, fetch_func: Callable[[], Dict]) -> Dict:
         """
@@ -256,18 +229,9 @@ class CacheManager:
         Returns:
             Tag dictionary
         """
-        return self.get_or_fetch(
-            self.KEY_SONARR_TAG,
-            fetch_func,
-            self.config.ttl_tags,
-            tag_id
-        )
+        return self.get_or_fetch(self.KEY_SONARR_TAG, fetch_func, self.config.ttl_tags, tag_id)
 
-    def get_metadata_imdb(
-        self,
-        rating_key: str,
-        fetch_func: Callable[[], Dict]
-    ) -> Dict:
+    def get_metadata_imdb(self, rating_key: str, fetch_func: Callable[[], Dict]) -> Dict:
         """
         Get IMDB metadata from cache or fetch.
 
@@ -279,17 +243,10 @@ class CacheManager:
             Metadata dictionary
         """
         return self.get_or_fetch(
-            self.KEY_METADATA_IMDB,
-            fetch_func,
-            self.config.ttl_metadata,
-            rating_key
+            self.KEY_METADATA_IMDB, fetch_func, self.config.ttl_metadata, rating_key
         )
 
-    def get_metadata_tvdb(
-        self,
-        rating_key: str,
-        fetch_func: Callable[[], Dict]
-    ) -> Dict:
+    def get_metadata_tvdb(self, rating_key: str, fetch_func: Callable[[], Dict]) -> Dict:
         """
         Get TVDB metadata from cache or fetch.
 
@@ -301,10 +258,7 @@ class CacheManager:
             Metadata dictionary
         """
         return self.get_or_fetch(
-            self.KEY_METADATA_TVDB,
-            fetch_func,
-            self.config.ttl_metadata,
-            rating_key
+            self.KEY_METADATA_TVDB, fetch_func, self.config.ttl_metadata, rating_key
         )
 
     def clear_all(self):

@@ -194,8 +194,7 @@ class CacheStore:
 
         # Calculate cache size
         total_size = sum(
-            f.stat().st_size for f in self.cache_dir.glob("*.json*")
-            if f.name != self.STATS_FILE
+            f.stat().st_size for f in self.cache_dir.glob("*.json*") if f.name != self.STATS_FILE
         )
         stats["size_bytes"] = total_size
         stats["size_mb"] = round(total_size / (1024 * 1024), 2)

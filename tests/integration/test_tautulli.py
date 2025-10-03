@@ -33,7 +33,7 @@ class TestTautulliAPI:
         """Test successful API request."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.headers.get.return_value = 'application/json'
+        mock_response.headers.get.return_value = "application/json"
         mock_response.raise_for_status.return_value = None
         mock_response.json.return_value = {"response": {"data": {"key": "value"}}}
         mock_get.return_value = mock_response
@@ -53,7 +53,7 @@ class TestTautulliAPI:
         """Test API request without additional parameters."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.headers.get.return_value = 'application/json'
+        mock_response.headers.get.return_value = "application/json"
         mock_response.raise_for_status.return_value = None
         mock_response.json.return_value = {"response": {"success": True}}
         mock_get.return_value = mock_response
@@ -73,7 +73,7 @@ class TestTautulliAPI:
         """Test API request with HTTP error."""
         mock_response = Mock()
         mock_response.status_code = 404
-        mock_response.headers.get.return_value = 'application/json'
+        mock_response.headers.get.return_value = "application/json"
         mock_response.raise_for_status.side_effect = requests.HTTPError("HTTP 404")
         mock_get.return_value = mock_response
 
@@ -563,7 +563,7 @@ class TestTautulliRegexPatterns:
         """Test get_tvdb_id_from_rating_key returns None when no match (line 386)."""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_response.headers.get.return_value = 'application/json'
+        mock_response.headers.get.return_value = "application/json"
         mock_response.json.return_value = {
             "response": {"data": {"guids": ["imdb://tt123456", "other://some_id"]}}  # No TVDB ID
         }

@@ -197,6 +197,7 @@ def format_episode_count(watched: int, total: int) -> str:
 
 # Episode key utilities
 
+
 def make_episode_key(season_num: int, episode_num: int) -> str:
     """
     Create standardized episode key string.

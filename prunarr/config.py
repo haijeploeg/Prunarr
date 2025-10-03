@@ -62,43 +62,33 @@ class Settings(BaseModel):
     )
 
     # Cache configuration
-    cache_enabled: bool = Field(
-        default=True,
-        description="Enable caching to improve performance"
-    )
+    cache_enabled: bool = Field(default=True, description="Enable caching to improve performance")
     cache_dir: Optional[str] = Field(
-        default=None,
-        description="Custom cache directory (default: ~/.prunarr/cache)"
+        default=None, description="Custom cache directory (default: ~/.prunarr/cache)"
     )
     cache_ttl_movies: int = Field(
-        default=3600,
-        description="TTL for Radarr movie cache in seconds (default: 1 hour)"
+        default=3600, description="TTL for Radarr movie cache in seconds (default: 1 hour)"
     )
     cache_ttl_series: int = Field(
-        default=3600,
-        description="TTL for Sonarr series cache in seconds (default: 1 hour)"
+        default=3600, description="TTL for Sonarr series cache in seconds (default: 1 hour)"
     )
     cache_ttl_history: int = Field(
-        default=300,
-        description="TTL for Tautulli history cache in seconds (default: 5 minutes)"
+        default=300, description="TTL for Tautulli history cache in seconds (default: 5 minutes)"
     )
     cache_ttl_tags: int = Field(
-        default=86400,
-        description="TTL for tag cache in seconds (default: 24 hours)"
+        default=86400, description="TTL for tag cache in seconds (default: 24 hours)"
     )
     cache_ttl_metadata: int = Field(
-        default=604800,
-        description="TTL for metadata cache in seconds (default: 7 days)"
+        default=604800, description="TTL for metadata cache in seconds (default: 7 days)"
     )
     cache_max_size_mb: int = Field(
-        default=100,
-        description="Maximum cache size in megabytes (default: 100 MB)"
+        default=100, description="Maximum cache size in megabytes (default: 100 MB)"
     )
 
     # Logging configuration
     log_level: str = Field(
         default="ERROR",
-        description="Default log level: DEBUG, INFO, WARNING, ERROR (default: ERROR)"
+        description="Default log level: DEBUG, INFO, WARNING, ERROR (default: ERROR)",
     )
 
     @field_validator("log_level")

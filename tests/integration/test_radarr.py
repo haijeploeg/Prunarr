@@ -295,6 +295,7 @@ class TestRadarrAPIIntegration:
     def test_method_call_forwarding(self, mock_pyarr):
         """Test that method calls are forwarded to PyarrRadarrAPI correctly."""
         mock_instance = Mock()
+        mock_instance.get_movie.return_value = []
         mock_pyarr.return_value = mock_instance
 
         api = RadarrAPI("http://localhost:7878", "test-key")

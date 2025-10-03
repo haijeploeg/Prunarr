@@ -96,7 +96,9 @@ def list_history(
 
     # Validate that --all and --limit are not used together
     if all_records and limit != 100:  # 100 is the default value
-        logger.error("Cannot use both --all and --limit together. Use either --all for all records or --limit for a specific number.")
+        logger.error(
+            "Cannot use both --all and --limit together. Use either --all for all records or --limit for a specific number."
+        )
         raise typer.Exit(1)
 
     if all_records:
@@ -121,7 +123,7 @@ def list_history(
         # So we just check if cache is enabled and has any files
         if prunarr.cache_manager and prunarr.cache_manager.is_enabled():
             cache_stats = prunarr.cache_manager.get_stats()
-            if cache_stats.get('file_count', 0) > 0:
+            if cache_stats.get("file_count", 0) > 0:
                 logger.info("[dim](using cached data)[/dim]")
 
         if not history:
@@ -134,6 +136,7 @@ def list_history(
         if output == "json":
             # Prepare JSON-serializable data using shared serializer
             from prunarr.utils.serializers import prepare_history_for_json
+
             json_output = [prepare_history_for_json(record) for record in history]
             print(json.dumps(json_output, indent=2))
         else:
@@ -143,7 +146,9 @@ def list_history(
             # Populate table with history data
             for record in history:
                 progress = (
-                    f"{record.get('percent_complete', 0)}%" if record.get("percent_complete") else "N/A"
+                    f"{record.get('percent_complete', 0)}%"
+                    if record.get("percent_complete")
+                    else "N/A"
                 )
 
                 table.add_row(
@@ -271,13 +276,21 @@ def get_history_details(
             if details.get("studio"):
                 json_output["studio"] = details.get("studio")
             if details.get("genres"):
-                json_output["genres"] = [g.get("tag") for g in details.get("genres", []) if isinstance(g, dict)]
+                json_output["genres"] = [
+                    g.get("tag") for g in details.get("genres", []) if isinstance(g, dict)
+                ]
             if details.get("directors"):
-                json_output["directors"] = [d.get("tag") for d in details.get("directors", []) if isinstance(d, dict)]
+                json_output["directors"] = [
+                    d.get("tag") for d in details.get("directors", []) if isinstance(d, dict)
+                ]
             if details.get("writers"):
-                json_output["writers"] = [w.get("tag") for w in details.get("writers", []) if isinstance(w, dict)]
+                json_output["writers"] = [
+                    w.get("tag") for w in details.get("writers", []) if isinstance(w, dict)
+                ]
             if details.get("actors"):
-                json_output["actors"] = [a.get("tag") for a in details.get("actors", []) if isinstance(a, dict)]
+                json_output["actors"] = [
+                    a.get("tag") for a in details.get("actors", []) if isinstance(a, dict)
+                ]
 
             print(json.dumps(json_output, indent=2))
         else:
@@ -339,7 +352,9 @@ def get_history_details(
 
             # Process and display list-type metadata
             if details.get("genres"):
-                genres = [g.get("tag", "") for g in details.get("genres", []) if isinstance(g, dict)]
+                genres = [
+                    g.get("tag", "") for g in details.get("genres", []) if isinstance(g, dict)
+                ]
                 if genres:
                     table.add_row("Genres", ", ".join(genres))
 
@@ -351,7 +366,9 @@ def get_history_details(
                     table.add_row("Directors", ", ".join(directors))
 
             if details.get("writers"):
-                writers = [w.get("tag", "") for w in details.get("writers", []) if isinstance(w, dict)]
+                writers = [
+                    w.get("tag", "") for w in details.get("writers", []) if isinstance(w, dict)
+                ]
                 if writers:
                     table.add_row("Writers", ", ".join(writers))
 

@@ -56,7 +56,14 @@ class TautulliAPI:
         cache_manager: Optional cache manager for performance optimization
     """
 
-    def __init__(self, base_url: str, api_key: str, cache_manager: Optional["CacheManager"] = None, debug: bool = False, log_level: str = "ERROR") -> None:
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        cache_manager: Optional["CacheManager"] = None,
+        debug: bool = False,
+        log_level: str = "ERROR",
+    ) -> None:
         """
         Initialize the Tautulli API client with server connection details.
 
@@ -114,11 +121,13 @@ class TautulliAPI:
 
             # Handle configuration/URL errors
             if response.status_code in [403, 404, 307, 308] or response.status_code >= 500:
-                raise ValueError("Tautulli server not accessible. Check your URL and verify Tautulli is running.")
+                raise ValueError(
+                    "Tautulli server not accessible. Check your URL and verify Tautulli is running."
+                )
 
             # Handle non-JSON responses (redirects, HTML pages, etc.)
-            content_type = response.headers.get('content-type', '').lower()
-            if 'application/json' not in content_type:
+            content_type = response.headers.get("content-type", "").lower()
+            if "application/json" not in content_type:
                 raise ValueError("Invalid response from Tautulli. Check your URL configuration.")
 
             response.raise_for_status()
@@ -128,8 +137,11 @@ class TautulliAPI:
                 json_data = response.json()
 
                 # Check for Tautulli API errors
-                if isinstance(json_data, dict) and json_data.get('response', {}).get('result') == 'error':
-                    error_msg = json_data.get('response', {}).get('message', 'Unknown error')
+                if (
+                    isinstance(json_data, dict)
+                    and json_data.get("response", {}).get("result") == "error"
+                ):
+                    error_msg = json_data.get("response", {}).get("message", "Unknown error")
                     raise ValueError(f"Tautulli API error: {error_msg}")
 
                 return json_data.get("response", {})
@@ -140,7 +152,9 @@ class TautulliAPI:
                 raise ValueError("Invalid JSON response from Tautulli. Check your configuration.")
 
         except requests.exceptions.ConnectionError:
-            raise ValueError("Cannot connect to Tautulli server. Check your URL and network connection.")
+            raise ValueError(
+                "Cannot connect to Tautulli server. Check your URL and network connection."
+            )
         except requests.exceptions.Timeout:
             raise ValueError("Tautulli API request timed out. Server may be overloaded.")
         except requests.exceptions.RequestException as e:
@@ -188,7 +202,10 @@ class TautulliAPI:
         if self.cache_manager and self.cache_manager.is_enabled():
             cached_data = self.cache_manager.get_tautulli_history(
                 lambda: self._fetch_watch_history(page_size, order_column, order_dir, limit),
-                page_size, order_column, order_dir, limit
+                page_size,
+                order_column,
+                order_dir,
+                limit,
             )
             return cached_data
 
@@ -226,7 +243,9 @@ class TautulliAPI:
 
             # Get total available records from Tautulli (if provided)
             if total_records_available is None:
-                total_records_available = data_obj.get("recordsFiltered") or data_obj.get("recordsTotal")
+                total_records_available = data_obj.get("recordsFiltered") or data_obj.get(
+                    "recordsTotal"
+                )
 
             if not page_data:
                 break
@@ -477,8 +496,7 @@ class TautulliAPI:
         # Try cache first if available
         if self.cache_manager and self.cache_manager.is_enabled():
             return self.cache_manager.get_metadata_imdb(
-                rating_key,
-                lambda: self._fetch_metadata(rating_key)
+                rating_key, lambda: self._fetch_metadata(rating_key)
             )
 
         return self._fetch_metadata(rating_key)

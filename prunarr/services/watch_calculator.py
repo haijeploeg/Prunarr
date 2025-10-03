@@ -50,9 +50,7 @@ class WatchCalculator:
             return "watched", watched_by_display
 
     @staticmethod
-    def determine_series_watch_status(
-        watched_episodes: int, total_episodes: int
-    ) -> str:
+    def determine_series_watch_status(watched_episodes: int, total_episodes: int) -> str:
         """
         Determine overall watch status for a series.
 
@@ -73,9 +71,7 @@ class WatchCalculator:
             return "partially_watched"
 
     @staticmethod
-    def calculate_completion_percentage(
-        watched_count: int, total_count: int
-    ) -> float:
+    def calculate_completion_percentage(watched_count: int, total_count: int) -> float:
         """
         Calculate completion percentage.
 
@@ -112,7 +108,7 @@ class WatchCalculator:
 
     @staticmethod
     def calculate_most_recent_watch(
-        series_watch_info: Dict[str, Dict]
+        series_watch_info: Dict[str, Dict],
     ) -> Tuple[Optional[datetime], Optional[int]]:
         """
         Calculate most recent watch date and days since for a series.
@@ -184,7 +180,7 @@ class WatchCalculator:
 
     @staticmethod
     def get_most_recent_watch_from_episode_watchers(
-        episode_watchers: Dict[str, Dict]
+        episode_watchers: Dict[str, Dict],
     ) -> Tuple[Optional[datetime], Optional[int]]:
         """
         Get most recent watch datetime and days since from episode watchers dict.

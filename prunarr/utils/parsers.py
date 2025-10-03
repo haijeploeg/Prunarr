@@ -73,7 +73,7 @@ def parse_file_size(size_str: str) -> int:
         raise ValueError("Size string cannot be empty")
 
     # Match number (with optional decimal) and unit
-    pattern = r'^(\d+(?:\.\d+)?)\s*([KMGT]?B)$'
+    pattern = r"^(\d+(?:\.\d+)?)\s*([KMGT]?B)$"
     match = re.match(pattern, size_str.upper().strip())
 
     if not match:
@@ -87,11 +87,11 @@ def parse_file_size(size_str: str) -> int:
 
     # Unit conversion factors
     units = {
-        'B': 1,
-        'KB': 1024,
-        'MB': 1024 ** 2,
-        'GB': 1024 ** 3,
-        'TB': 1024 ** 4,
+        "B": 1,
+        "KB": 1024,
+        "MB": 1024**2,
+        "GB": 1024**3,
+        "TB": 1024**4,
     }
 
     multiplier = units.get(unit, 1)

@@ -120,10 +120,7 @@ def list_series(
 
         # Check and log cache status
         if prunarr.cache_manager:
-            prunarr.check_and_log_cache_status(
-                prunarr.cache_manager.KEY_SONARR_SERIES,
-                logger
-            )
+            prunarr.check_and_log_cache_status(prunarr.cache_manager.KEY_SONARR_SERIES, logger)
 
         if not series_list:
             logger.warning("No series found matching the specified criteria")
@@ -168,7 +165,9 @@ def list_series(
                 available_seasons = series.get("available_seasons", "")
 
                 # Format last watched date
-                last_watched_str = format_date_or_default(series.get("most_recent_watch"), default="Never")
+                last_watched_str = format_date_or_default(
+                    series.get("most_recent_watch"), default="Never"
+                )
 
                 table.add_row(
                     safe_get(series, "id"),
@@ -216,9 +215,7 @@ def remove_series(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show what would be removed without actually removing"
     ),
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Skip confirmation prompts"
-    ),
+    force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompts"),
 ):
     """
     [bold cyan]Remove watched TV series with advanced filtering and confirmation.[/bold cyan]
@@ -298,14 +295,19 @@ def remove_series(
 
         # Display what will be removed using factory
         table = create_series_removal_table(
-            title=f"Series Ready for Removal ({len(items_to_remove)} items)" if removal_mode == "series"
-            else f"Seasons Ready for Removal ({len(items_to_remove)} items)",
-            mode=removal_mode
+            title=(
+                f"Series Ready for Removal ({len(items_to_remove)} items)"
+                if removal_mode == "series"
+                else f"Seasons Ready for Removal ({len(items_to_remove)} items)"
+            ),
+            mode=removal_mode,
         )
 
         if removal_mode == "series":
             for item in items_to_remove:
-                last_watched_str = format_date_or_default(item.get("most_recent_watch"), default="Never")
+                last_watched_str = format_date_or_default(
+                    item.get("most_recent_watch"), default="Never"
+                )
 
                 table.add_row(
                     safe_get(item, "id"),
@@ -321,7 +323,9 @@ def remove_series(
 
         else:  # season mode
             for item in items_to_remove:
-                last_watched_str = format_date_or_default(item.get("most_recent_watch"), default="Never")
+                last_watched_str = format_date_or_default(
+                    item.get("most_recent_watch"), default="Never"
+                )
                 season_data = item.get("season_data", {})
 
                 table.add_row(
@@ -359,9 +363,7 @@ def remove_series(
                 return
 
             # Final confirmation for extra safety
-            if not typer.confirm(
-                "Are you absolutely sure? This cannot be undone!"
-            ):
+            if not typer.confirm("Are you absolutely sure? This cannot be undone!"):
                 logger.info("Removal cancelled by user at final confirmation")
                 return
 
@@ -563,12 +565,14 @@ def get_series_details(
                     "total_size_bytes": total_series_size,
                     "user": series_watch_data.get("user"),
                 },
-                "seasons": []
+                "seasons": [],
             }
 
             # Add last watched date
             if series_watch_data.get("most_recent_watch"):
-                json_output["series_info"]["last_watched"] = series_watch_data["most_recent_watch"].isoformat()
+                json_output["series_info"]["last_watched"] = series_watch_data[
+                    "most_recent_watch"
+                ].isoformat()
             else:
                 json_output["series_info"]["last_watched"] = None
 
@@ -599,7 +603,7 @@ def get_series_details(
                     "watched_episodes": season_watched,
                     "total_episodes": season_total,
                     "total_size_bytes": season_total_size,
-                    "episodes": []
+                    "episodes": [],
                 }
 
                 for episode in season_episodes:
@@ -647,7 +651,9 @@ def get_series_details(
             print(json.dumps(json_output, indent=2))
         else:
             # Display series header information
-            console.print(f"\n[bold cyan]📺 {series_info.get('title', 'Unknown Title')}[/bold cyan]")
+            console.print(
+                f"\n[bold cyan]📺 {series_info.get('title', 'Unknown Title')}[/bold cyan]"
+            )
             if series_info.get("year"):
                 console.print(f"[dim]Released: {series_info['year']}[/dim]")
 
@@ -692,7 +698,9 @@ def get_series_details(
                         season_total_size += file_data.get("size", 0)
 
                 # Season header with total size
-                season_size_str = format_file_size(season_total_size) if season_total_size > 0 else ""
+                season_size_str = (
+                    format_file_size(season_total_size) if season_total_size > 0 else ""
+                )
                 size_display = f" - {season_size_str}" if season_size_str else ""
                 console.print(
                     f"\n[bold magenta]Season {season_num}[/bold magenta] "
