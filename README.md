@@ -436,6 +436,48 @@ prunarr history get 12345
 prunarr history get 2792 --output json
 ```
 
+### 🎬 Streaming Provider Management (`prunarr providers`)
+
+#### List Available Providers
+
+```bash
+# List all FLATRATE providers for your locale
+prunarr providers list
+
+# List providers for specific locale
+prunarr providers list --locale en_GB
+prunarr providers list --locale de_DE
+
+# Get JSON output for scripting
+prunarr providers list --output json
+prunarr providers list --output json | jq '.[] | select(.technical_name == "nfx")'
+
+# Find specific provider technical name
+prunarr providers list | grep -i netflix
+prunarr providers list | grep -i disney
+```
+
+#### Check Content Availability
+
+```bash
+# Check if a movie is available on streaming
+prunarr providers check "The Matrix"
+
+# Check with specific year for better matching
+prunarr providers check "The Matrix" --year 1999
+
+# Check TV series availability
+prunarr providers check "Breaking Bad" --type series
+prunarr providers check "Stranger Things" --type show
+
+# Check in different locale
+prunarr providers check "Dark" --type series --locale de_DE
+
+# Get JSON output with complete availability data
+prunarr providers check "Inception" --output json
+prunarr providers check "The Office" --type series --output json > availability.json
+```
+
 ### 💾 Cache Management (`prunarr cache`)
 
 #### Initialize and Manage Cache
