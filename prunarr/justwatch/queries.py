@@ -39,7 +39,6 @@ OFFERS_QUERY = """
 query GetTitleOffers(
     $nodeId: ID!
     $country: Country!
-    $language: Language!
     $filterBuy: OfferFilter!
     $filterFlatrate: OfferFilter!
     $filterRent: OfferFilter!

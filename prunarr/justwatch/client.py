@@ -229,7 +229,6 @@ class JustWatchClient:
         variables = {
             "nodeId": justwatch_id,
             "country": self.country,
-            "language": self.language,
             "filterBuy": {"monetizationTypes": ["BUY"]},
             "filterFlatrate": {"monetizationTypes": ["FLATRATE"]},
             "filterRent": {"monetizationTypes": ["RENT"]},
