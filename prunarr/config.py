@@ -91,6 +91,23 @@ class Settings(BaseModel):
         description="Default log level: DEBUG, INFO, WARNING, ERROR (default: ERROR)",
     )
 
+    # Streaming provider configuration
+    streaming_enabled: bool = Field(
+        default=False, description="Enable streaming provider checking via JustWatch"
+    )
+    streaming_locale: str = Field(
+        default="en_US",
+        description="Locale for JustWatch queries (format: language_COUNTRY, e.g., en_US)",
+    )
+    streaming_providers: list[str] = Field(
+        default_factory=list,
+        description="List of streaming provider technical names (e.g., nfx, amp, dnp)",
+    )
+    cache_ttl_streaming: int = Field(
+        default=86400,
+        description="TTL for JustWatch streaming data cache in seconds (default: 24 hours)",
+    )
+
     @field_validator("log_level")
     @classmethod
     def validate_log_level(cls, value: str) -> str:
@@ -230,4 +247,9 @@ def load_settings(config_file: Optional[str] = None) -> Settings:
         cache_ttl_tags=config_data.get("cache_ttl_tags", 86400),
         cache_ttl_metadata=config_data.get("cache_ttl_metadata", 604800),
         cache_max_size_mb=config_data.get("cache_max_size_mb", 100),
+        # Streaming settings
+        streaming_enabled=config_data.get("streaming_enabled", False),
+        streaming_locale=config_data.get("streaming_locale", "en_US"),
+        streaming_providers=config_data.get("streaming_providers", []),
+        cache_ttl_streaming=config_data.get("cache_ttl_streaming", 86400),
     )

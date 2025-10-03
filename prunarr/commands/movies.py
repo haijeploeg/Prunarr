@@ -268,6 +268,12 @@ def list_movies(
     min_filesize: Optional[str] = typer.Option(
         None, "--min-filesize", help="Minimum file size (e.g., '1GB', '500MB', '2.5GB')"
     ),
+    on_streaming: bool = typer.Option(
+        False, "--on-streaming", help="Show ONLY movies available on configured streaming providers"
+    ),
+    not_on_streaming: bool = typer.Option(
+        False, "--not-on-streaming", help="Show ONLY movies NOT available on streaming providers"
+    ),
     output: str = typer.Option("table", "--output", "-o", help="Output format: table or json"),
 ):
     """
@@ -293,6 +299,8 @@ def list_movies(
         • [green]--days-watched[/green] - movies watched X+ days ago
         • [green]--include-untagged/--exclude-untagged[/green] - control untagged movies
         • [green]--min-filesize[/green] - minimum file size (e.g., '1GB', '500MB')
+        • [green]--on-streaming[/green] - show ONLY movies available on streaming providers
+        • [green]--not-on-streaming[/green] - show ONLY movies NOT available on streaming
         • [green]--limit[/green] - limit number of results
 
     [bold yellow]Sorting options:[/bold yellow]
@@ -324,6 +332,15 @@ def list_movies(
         [dim]# Recent movies sorted by date added[/dim]
         prunarr movies list [green]--sort-by[/green] date [green]--desc[/green] [green]--limit[/green] 20
 
+        [dim]# Show movies available on configured streaming providers[/dim]
+        prunarr movies list [green]--on-streaming[/green]
+
+        [dim]# Show movies NOT available on streaming (unique content)[/dim]
+        prunarr movies list [green]--not-on-streaming[/green]
+
+        [dim]# Find large files that are streamable[/dim]
+        prunarr movies list [green]--on-streaming[/green] [green]--min-filesize[/green] 5GB
+
         [dim]# Get latest 10 movies with debug info[/dim]
         prunarr[blue]--debug[/blue] movies list [green]--limit[/green] 10
     """
@@ -336,8 +353,21 @@ def list_movies(
     # Validate output format using shared validator
     validate_output_format(output, logger)
 
+    # Validate streaming filter mutual exclusivity
+    if on_streaming and not_on_streaming:
+        logger.error("Cannot use both --on-streaming and --not-on-streaming filters together")
+        raise typer.Exit(1)
+
     # Validate and parse options
     sort_by, min_filesize_bytes = validate_and_parse_options(sort_by, min_filesize, logger)
+
+    # Check if streaming filters are requested but not configured
+    if (on_streaming or not_on_streaming) and not settings.streaming_enabled:
+        logger.error(
+            "Streaming filters require streaming_enabled=true in configuration. "
+            "Please configure streaming_enabled, streaming_locale, and streaming_providers in your config."
+        )
+        raise typer.Exit(1)
 
     logger.info("Retrieving movies from Radarr with watch status...")
     prunarr = PrunArr(settings, debug=debug)
@@ -363,6 +393,37 @@ def list_movies(
             include_untagged=include_untagged,
             remove_mode=False,
         )
+
+        # Apply streaming filters if requested
+        if on_streaming or not_on_streaming:
+            from prunarr.services.streaming_checker import StreamingChecker
+
+            logger.info("Checking streaming availability...")
+            streaming_checker = StreamingChecker(
+                locale=settings.streaming_locale,
+                providers=settings.streaming_providers,
+                cache_manager=prunarr.cache_manager,
+                logger=logger,
+            )
+
+            streaming_filtered = []
+            for movie in filtered_movies:
+                is_available = streaming_checker.is_on_streaming(
+                    media_type="movie",
+                    title=movie.get("title", ""),
+                    year=movie.get("year"),
+                    imdb_id=movie.get("imdb_id"),
+                )
+
+                # Apply the appropriate filter
+                if on_streaming and is_available:
+                    streaming_filtered.append(movie)
+                elif not_on_streaming and not is_available:
+                    streaming_filtered.append(movie)
+
+            filtered_movies = streaming_filtered
+            filter_type = "on streaming" if on_streaming else "not on streaming"
+            logger.info(f"After streaming filter: {len(filtered_movies)} movies {filter_type}")
 
         # Apply sorting
         filtered_movies = sort_movies(filtered_movies, sort_by, sort_desc)
@@ -490,6 +551,14 @@ def remove_movies(
         "--include-untagged/--exclude-untagged",
         help="Include movies without user tags (default: exclude untagged)",
     ),
+    on_streaming: bool = typer.Option(
+        False,
+        "--on-streaming",
+        help="Remove ONLY movies available on configured streaming providers",
+    ),
+    not_on_streaming: bool = typer.Option(
+        False, "--not-on-streaming", help="Remove ONLY movies NOT available on streaming providers"
+    ),
 ):
     """
     [bold cyan]Remove watched movies with advanced filtering and confirmation.[/bold cyan]
@@ -510,6 +579,8 @@ def remove_movies(
         • [green]--days-watched[/green] - movies watched X+ days ago
         • [green]--min-filesize[/green] - minimum file size (e.g., '1GB', '500MB')
         • [green]--include-untagged/--exclude-untagged[/green] - control untagged movies
+        • [green]--on-streaming[/green] - remove ONLY movies available on streaming providers
+        • [green]--not-on-streaming[/green] - remove ONLY movies NOT available on streaming
         • [green]--limit[/green] - limit number of movies to process
 
     [bold yellow]Sorting options:[/bold yellow]
@@ -534,6 +605,12 @@ def remove_movies(
 
         [dim]# Quick cleanup by file size (largest first)[/dim]
         prunarr movies remove [green]--sort-by[/green] filesize [green]--limit[/green] 5
+
+        [dim]# Remove watched movies available on streaming (you can stream them)[/dim]
+        prunarr movies remove [green]--on-streaming[/green] [green]--days-watched[/green] 30
+
+        [dim]# Remove watched movies NOT on streaming (keep unique content longer)[/dim]
+        prunarr movies remove [green]--not-on-streaming[/green] [green]--days-watched[/green] 180
     """
     context_obj = ctx.obj
     settings: Settings = context_obj["settings"]
@@ -541,8 +618,21 @@ def remove_movies(
 
     logger = get_logger("movies", debug=debug, log_level=settings.log_level)
 
+    # Validate streaming filter mutual exclusivity
+    if on_streaming and not_on_streaming:
+        logger.error("Cannot use both --on-streaming and --not-on-streaming filters together")
+        raise typer.Exit(1)
+
     # Validate and parse options
     sort_by, min_filesize_bytes = validate_and_parse_options(sort_by, min_filesize, logger)
+
+    # Check if streaming filters are requested but not configured
+    if (on_streaming or not_on_streaming) and not settings.streaming_enabled:
+        logger.error(
+            "Streaming filters require streaming_enabled=true in configuration. "
+            "Please configure streaming_enabled, streaming_locale, and streaming_providers in your config."
+        )
+        raise typer.Exit(1)
 
     # Fix the sort order logic (--sort-asc means ascending, default is descending)
     sort_desc_actual = not sort_desc
@@ -568,6 +658,37 @@ def remove_movies(
             include_untagged=include_untagged,
             remove_mode=True,
         )
+
+        # Apply streaming filters if requested
+        if on_streaming or not_on_streaming:
+            from prunarr.services.streaming_checker import StreamingChecker
+
+            logger.info("Checking streaming availability...")
+            streaming_checker = StreamingChecker(
+                locale=settings.streaming_locale,
+                providers=settings.streaming_providers,
+                cache_manager=prunarr.cache_manager,
+                logger=logger,
+            )
+
+            streaming_filtered = []
+            for movie in movies_to_remove:
+                is_available = streaming_checker.is_on_streaming(
+                    media_type="movie",
+                    title=movie.get("title", ""),
+                    year=movie.get("year"),
+                    imdb_id=movie.get("imdb_id"),
+                )
+
+                # Apply the appropriate filter
+                if on_streaming and is_available:
+                    streaming_filtered.append(movie)
+                elif not_on_streaming and not is_available:
+                    streaming_filtered.append(movie)
+
+            movies_to_remove = streaming_filtered
+            filter_type = "on streaming" if on_streaming else "not on streaming"
+            logger.info(f"After streaming filter: {len(movies_to_remove)} movies {filter_type}")
 
         # Apply sorting
         movies_to_remove = sort_movies(movies_to_remove, sort_by, sort_desc_actual)

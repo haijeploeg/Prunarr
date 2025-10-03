@@ -79,6 +79,16 @@ cache_max_size_mb: 100
 cache_ttl_movies: 3600      # 1 hour
 cache_ttl_series: 3600      # 1 hour
 cache_ttl_history: 300      # 5 minutes
+
+# Streaming Provider Configuration (optional - JustWatch integration)
+streaming_enabled: false    # Set to true to enable streaming provider checks
+streaming_locale: "en_US"   # Locale for JustWatch (language_COUNTRY format)
+streaming_providers:        # List of provider technical names
+  - "nfx"                   # Netflix
+  - "amp"                   # Amazon Prime Video
+  - "dnp"                   # Disney+
+  - "hlu"                   # Hulu
+cache_ttl_streaming: 86400  # 24 hours
 ```
 
 ### Method 2: Environment Variables
@@ -111,6 +121,10 @@ export USER_TAG_REGEX="^\\d+ - (.+)$"
 | `cache_enabled` | Enable performance caching | `true` | `true` |
 | `cache_dir` | Cache storage directory | `~/.prunarr/cache` | `~/.prunarr/cache` |
 | `cache_max_size_mb` | Maximum cache size in MB | `100` | `100` |
+| `streaming_enabled` | Enable JustWatch streaming provider checks | `true` | `false` |
+| `streaming_locale` | Locale for streaming availability (language_COUNTRY) | `en_US` | `en_US` |
+| `streaming_providers` | List of provider technical names | `["nfx", "amp"]` | `[]` |
+| `cache_ttl_streaming` | Streaming data cache TTL (seconds) | `86400` | `86400` |
 
 ### Configuration Priority
 
@@ -143,6 +157,62 @@ Example: `"123 - john_doe"`
 - Only movies/shows with tags matching this pattern are processed
 - The username must match a user in Tautulli
 - Content is only removed when watched by the user specified in the tag
+
+## Streaming Provider Integration (JustWatch)
+
+PrunArr integrates with JustWatch to check streaming availability across your configured providers. This allows you to filter and manage content based on whether it's available on your streaming services.
+
+### Configuration
+
+Enable streaming provider checks in your `config.yaml`:
+
+```yaml
+streaming_enabled: true
+streaming_locale: "en_US"  # Your region (language_COUNTRY)
+streaming_providers:
+  - "nfx"                  # Netflix
+  - "amp"                  # Amazon Prime Video
+  - "dnp"                  # Disney+
+  - "hlu"                  # Hulu
+```
+
+**Common Provider Technical Names:**
+- `nfx` - Netflix
+- `amp` - Amazon Prime Video
+- `dnp` - Disney+
+- `hlu` - Hulu
+- `hbm` - HBO Max
+- `apl` - Apple TV+
+- `pcv` - Paramount+
+- `shw` - Showtime
+
+### Filtering Options
+
+**`--on-streaming`**: Show/remove ONLY content available on your configured providers
+- Use case: Find movies you're storing that you can already stream
+
+**`--not-on-streaming`**: Show/remove ONLY content NOT available on streaming
+- Use case: Focus on your unique collection not available elsewhere
+
+### Example Use Cases
+
+```bash
+# Find large files you're storing that are available on streaming
+prunarr movies list --on-streaming --min-filesize 5GB
+
+# Clean up watched movies available on streaming (you can stream them)
+prunarr movies remove --on-streaming --days-watched 30
+
+# Keep unique content longer (not on streaming)
+prunarr movies remove --not-on-streaming --days-watched 180
+
+# See what unique content you have
+prunarr movies list --not-on-streaming
+```
+
+### Caching
+
+Streaming availability data is cached for 24 hours by default to minimize API calls. Cache TTL can be configured with `cache_ttl_streaming` in seconds.
 
 ## Usage
 
@@ -203,6 +273,11 @@ prunarr movies list --sort-by days_watched
 # Combine multiple filters
 prunarr movies list --username "alice" --watched --min-filesize "1GB" --days-watched 60
 
+# Streaming provider filtering (requires streaming_enabled=true in config)
+prunarr movies list --on-streaming                    # Show ONLY movies on your streaming services
+prunarr movies list --not-on-streaming                # Show ONLY movies NOT on streaming
+prunarr movies list --on-streaming --min-filesize 5GB # Find large streamable files
+
 # Get JSON output for scripts/automation
 prunarr movies list --output json
 prunarr movies list --username "alice" --output json > movies.json
@@ -231,6 +306,10 @@ prunarr movies remove --force
 
 # Advanced filtering in removal
 prunarr movies remove --min-filesize "5GB" --days-watched 180 --dry-run
+
+# Streaming provider-based removal (requires streaming_enabled=true in config)
+prunarr movies remove --on-streaming --days-watched 30      # Remove watched movies you can stream
+prunarr movies remove --not-on-streaming --days-watched 180 # Keep unique content longer
 ```
 
 ### 📺 TV Series Management (`prunarr series`)

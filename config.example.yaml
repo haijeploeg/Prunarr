@@ -46,6 +46,27 @@ cache_max_size_mb: 100                # Maximum cache size in MB (default: 100 M
 # Set to DEBUG for detailed troubleshooting (or use --debug flag)
 log_level: ERROR                      # Log level: DEBUG, INFO, WARNING, ERROR (default: ERROR)
 
+# Streaming Provider Configuration (JustWatch Integration)
+# Enable this to filter content based on streaming availability
+streaming_enabled: false              # Enable streaming provider checks (default: false)
+streaming_locale: "en_US"             # Locale for JustWatch queries (language_COUNTRY format)
+streaming_providers:                  # List of streaming provider technical names
+  - "nfx"                             # Netflix
+  - "amp"                             # Amazon Prime Video
+  - "dnp"                             # Disney+
+  - "hlu"                             # Hulu
+  # Add more providers as needed - use "prunarr providers list" to see all available
+
+# Cache TTL for streaming data
+cache_ttl_streaming: 86400            # Streaming availability cache (default: 24 hours)
+
+# Common Provider Technical Names:
+# - nfx: Netflix              - hbm: HBO Max
+# - amp: Amazon Prime Video   - apl: Apple TV+
+# - dnp: Disney+              - pcv: Paramount+
+# - hlu: Hulu                 - shw: Showtime
+# - stz: Starz                - crv: Crunchyroll
+
 # Note: PrunArr uses command-line parameters for operational settings
 # The --days-watched parameter controls retention periods
 # Examples:
