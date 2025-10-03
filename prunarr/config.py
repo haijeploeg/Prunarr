@@ -61,6 +61,67 @@ class Settings(BaseModel):
         description="Regex pattern for extracting usernames from Radarr/Sonarr tags",
     )
 
+    # Cache configuration
+    cache_enabled: bool = Field(
+        default=True,
+        description="Enable caching to improve performance"
+    )
+    cache_dir: Optional[str] = Field(
+        default=None,
+        description="Custom cache directory (default: ~/.prunarr/cache)"
+    )
+    cache_ttl_movies: int = Field(
+        default=3600,
+        description="TTL for Radarr movie cache in seconds (default: 1 hour)"
+    )
+    cache_ttl_series: int = Field(
+        default=3600,
+        description="TTL for Sonarr series cache in seconds (default: 1 hour)"
+    )
+    cache_ttl_history: int = Field(
+        default=300,
+        description="TTL for Tautulli history cache in seconds (default: 5 minutes)"
+    )
+    cache_ttl_tags: int = Field(
+        default=86400,
+        description="TTL for tag cache in seconds (default: 24 hours)"
+    )
+    cache_ttl_metadata: int = Field(
+        default=604800,
+        description="TTL for metadata cache in seconds (default: 7 days)"
+    )
+    cache_max_size_mb: int = Field(
+        default=100,
+        description="Maximum cache size in megabytes (default: 100 MB)"
+    )
+
+    # Logging configuration
+    log_level: str = Field(
+        default="ERROR",
+        description="Default log level: DEBUG, INFO, WARNING, ERROR (default: ERROR)"
+    )
+
+    @field_validator("log_level")
+    @classmethod
+    def validate_log_level(cls, value: str) -> str:
+        """
+        Validate log level is one of the allowed values.
+
+        Args:
+            value: The log level to validate
+
+        Returns:
+            Uppercase log level string
+
+        Raises:
+            ValueError: If log level is not valid
+        """
+        allowed_levels = ["DEBUG", "INFO", "WARNING", "ERROR"]
+        value_upper = value.upper()
+        if value_upper not in allowed_levels:
+            raise ValueError(f"log_level must be one of {allowed_levels}, got '{value}'")
+        return value_upper
+
     @field_validator(
         "radarr_api_key",
         "radarr_url",
@@ -170,4 +231,13 @@ def load_settings(config_file: Optional[str] = None) -> Settings:
         tautulli_url=config_data.get("tautulli_url") or os.getenv("TAUTULLI_URL", ""),
         user_tag_regex=config_data.get("user_tag_regex")
         or os.getenv("USER_TAG_REGEX", r"^\d+ - (.+)$"),
+        # Cache settings
+        cache_enabled=config_data.get("cache_enabled", True),
+        cache_dir=config_data.get("cache_dir"),
+        cache_ttl_movies=config_data.get("cache_ttl_movies", 3600),
+        cache_ttl_series=config_data.get("cache_ttl_series", 3600),
+        cache_ttl_history=config_data.get("cache_ttl_history", 300),
+        cache_ttl_tags=config_data.get("cache_ttl_tags", 86400),
+        cache_ttl_metadata=config_data.get("cache_ttl_metadata", 604800),
+        cache_max_size_mb=config_data.get("cache_max_size_mb", 100),
     )

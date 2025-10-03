@@ -19,7 +19,7 @@ from typing import Optional
 import typer
 from pydantic import ValidationError
 
-from prunarr.commands import history, movies, series
+from prunarr.commands import cache, history, movies, series
 from prunarr.config import load_settings
 from prunarr.logger import get_logger
 
@@ -32,6 +32,7 @@ app = typer.Typer(
 app.add_typer(movies.app, name="movies", help="Manage movies in Radarr")
 app.add_typer(series.app, name="series", help="Manage TV series in Sonarr")
 app.add_typer(history.app, name="history", help="Analyze watch history from Tautulli")
+app.add_typer(cache.app, name="cache", help="Manage performance cache")
 
 
 @app.callback()

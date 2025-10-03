@@ -17,15 +17,17 @@ The PrunArr class serves as the central coordinator for:
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from prunarr.config import Settings
+from prunarr.logger import get_logger
 from prunarr.radarr import RadarrAPI
 from prunarr.sonarr import SonarrAPI
 from prunarr.tautulli import TautulliAPI
-from prunarr.utils import make_episode_key, parse_episode_key
+from prunarr.utils import make_episode_key
 from prunarr.services import MediaMatcher, UserService, WatchCalculator
+from prunarr.cache import CacheManager, CacheConfig
 
 
 class PrunArr:
@@ -52,13 +54,14 @@ class PrunArr:
         tag_pattern: Compiled regex for user tag extraction
     """
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, debug: bool = False) -> None:
         """
         Initialize PrunArr orchestrator with API clients and configuration.
 
         Args:
             settings: Validated application settings containing API credentials
                      and configuration options
+            debug: Enable debug logging
 
         Examples:
             >>> from prunarr.config import load_settings
@@ -67,15 +70,72 @@ class PrunArr:
             >>> movies = prunarr.get_movies_with_watch_status()
         """
         self.settings = settings
-        self.radarr = RadarrAPI(settings.radarr_url, settings.radarr_api_key)
-        self.sonarr = SonarrAPI(settings.sonarr_url, settings.sonarr_api_key)
-        self.tautulli = TautulliAPI(settings.tautulli_url, settings.tautulli_api_key)
+        # Get log level from settings, but --debug flag always overrides
+        log_level = settings.log_level if hasattr(settings, 'log_level') else "ERROR"
+        self.logger = get_logger("prunarr.core", debug=debug, log_level=log_level)
+
+        # Initialize cache manager from settings
+        cache_config = CacheConfig(
+            enabled=settings.cache_enabled,
+            cache_dir=settings.cache_dir,
+            ttl_movies=settings.cache_ttl_movies,
+            ttl_series=settings.cache_ttl_series,
+            ttl_history=settings.cache_ttl_history,
+            ttl_tags=settings.cache_ttl_tags,
+            ttl_metadata=settings.cache_ttl_metadata,
+            max_size_mb=settings.cache_max_size_mb,
+        )
+        self.cache_manager = CacheManager(cache_config, debug=debug, log_level=log_level) if cache_config.enabled else None
+
+        if self.cache_manager:
+            self.logger.debug(f"Cache enabled: {cache_config.cache_dir} (TTL: movies={cache_config.ttl_movies}s, series={cache_config.ttl_series}s, history={cache_config.ttl_history}s)")
+        else:
+            self.logger.debug("Cache disabled")
+
+        # Initialize API clients with cache manager, debug flag, and log level
+        self.radarr = RadarrAPI(settings.radarr_url, settings.radarr_api_key, self.cache_manager, debug=debug, log_level=log_level)
+        self.sonarr = SonarrAPI(settings.sonarr_url, settings.sonarr_api_key, self.cache_manager, debug=debug, log_level=log_level)
+        self.tautulli = TautulliAPI(settings.tautulli_url, settings.tautulli_api_key, self.cache_manager, debug=debug, log_level=log_level)
         self.tag_pattern = re.compile(settings.user_tag_regex)
 
         # Initialize service layer
         self.user_service = UserService(settings.user_tag_regex)
         self.media_matcher = MediaMatcher()
         self.watch_calculator = WatchCalculator()
+
+    def check_and_log_cache_status(self, cache_key: str, logger) -> bool:
+        """
+        Check if data was cached and log hint if so.
+
+        This helper method consolidates the common pattern of checking
+        cache status and logging a hint to the user when cached data is used.
+
+        Args:
+            cache_key: Cache key to check (e.g., KEY_RADARR_MOVIES, KEY_SONARR_SERIES)
+            logger: Logger instance to use for logging the cache hint
+
+        Returns:
+            True if data was cached, False otherwise
+
+        Examples:
+            >>> was_cached = prunarr.check_and_log_cache_status(
+            ...     prunarr.cache_manager.KEY_RADARR_MOVIES,
+            ...     logger
+            ... )
+            >>> if was_cached:
+            ...     # Data came from cache
+            ...     pass
+        """
+        if not self.cache_manager or not self.cache_manager.is_enabled():
+            return False
+
+        cache_info = self.cache_manager.get_cache_info(cache_key)
+        was_cached = cache_info is not None
+
+        if was_cached:
+            logger.info("[dim](using cached data)[/dim]")
+
+        return was_cached
 
     def get_user_tags(self, tag_ids: List[int], api_client=None) -> Optional[str]:
         """
@@ -122,8 +182,10 @@ class PrunArr:
         Returns:
             List of movies with id, title, imdb_id, user, year, and file info
         """
+        self.logger.debug(f"get_all_radarr_movies: include_untagged={include_untagged}")
         result: List[Dict[str, Any]] = []
         movies = self.radarr.get_movie()
+        self.logger.debug(f"Fetched {len(movies)} movies from Radarr API")
 
         for movie in movies:
             movie_file = movie.get("movieFile")
@@ -182,9 +244,16 @@ class PrunArr:
         Returns:
             List of movies with watch status, last watched date, and days since watched
         """
+        self.logger.debug(f"get_movies_with_watch_status: include_untagged={include_untagged}, username_filter={username_filter}")
+
         all_movies = self.get_all_radarr_movies(include_untagged=include_untagged)
+        self.logger.debug(f"Retrieved {len(all_movies)} movies from Radarr")
+
         tautulli_history = self.tautulli.get_movie_completed_history()
+        self.logger.debug(f"Retrieved {len(tautulli_history)} movie watch history records from Tautulli")
+
         watch_lookup = self._build_movie_watch_lookup(tautulli_history)
+        self.logger.debug(f"Built watch lookup for {len(watch_lookup)} unique movies")
 
         now = datetime.now()
         movies_with_status = []
@@ -456,8 +525,10 @@ class PrunArr:
         Returns:
             List of series with id, title, tvdb_id, user, year, and file info
         """
+        self.logger.debug(f"get_all_sonarr_series: include_untagged={include_untagged}")
         result: List[Dict[str, Any]] = []
         series_list = self.sonarr.get_series()
+        self.logger.debug(f"Fetched {len(series_list)} series from Sonarr API")
 
         for series in series_list:
             tag_ids = series.get("tags", [])
@@ -504,7 +575,6 @@ class PrunArr:
         username_filter: Optional[str] = None,
         series_filter: Optional[str] = None,
         season_filter: Optional[int] = None,
-        debug: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Get all series with their watch status from Tautulli.
@@ -518,25 +588,31 @@ class PrunArr:
         Returns:
             List of series with watch status, episode details, and watch progress
         """
+        self.logger.debug(f"get_series_with_watch_status: include_untagged={include_untagged}, username_filter={username_filter}, series_filter={series_filter}, season_filter={season_filter}")
+
         # Get and filter series
         all_series = self.get_all_sonarr_series(include_untagged=include_untagged)
+        self.logger.debug(f"Retrieved {len(all_series)} series from Sonarr")
 
         if series_filter:
             all_series = [
                 s for s in all_series if series_filter.lower() in s.get("title", "").lower()
             ]
+            self.logger.debug(f"After series_filter '{series_filter}': {len(all_series)} series")
+
         if username_filter:
             all_series = [s for s in all_series if s.get("user") == username_filter]
+            self.logger.debug(f"After username_filter '{username_filter}': {len(all_series)} series")
 
         # Build watch lookup
         tautulli_history = self.tautulli.get_episode_completed_history()
-        series_tvdb_cache = self.tautulli.build_series_metadata_cache(tautulli_history)
-        watch_lookup = self._build_episode_watch_lookup(tautulli_history, series_tvdb_cache)
+        self.logger.debug(f"Retrieved {len(tautulli_history)} episode watch history records from Tautulli")
 
-        if debug:
-            print(f"[DEBUG] Found {len(tautulli_history)} episode watch records")
-            print(f"[DEBUG] Built TVDB cache with {len(series_tvdb_cache)} series")
-            print(f"[DEBUG] Watch lookup contains {len(watch_lookup)} series with episode data")
+        series_tvdb_cache = self.tautulli.build_series_metadata_cache(tautulli_history)
+        self.logger.debug(f"Built TVDB cache with {len(series_tvdb_cache)} unique series")
+
+        watch_lookup = self._build_episode_watch_lookup(tautulli_history, series_tvdb_cache)
+        self.logger.debug(f"Built episode watch lookup for {len(watch_lookup)} series")
 
         # Process each series
         series_with_status = []
@@ -593,10 +669,6 @@ class PrunArr:
                 "available_seasons": available_seasons_str,
                 "total_size_on_disk": total_size_on_disk,
             })
-
-            if debug:
-                print(f"[DEBUG] Processed '{series.get('title')}': "
-                      f"{total_watched_episodes}/{actual_total_episodes} episodes watched")
 
         return series_with_status
 

@@ -21,9 +21,17 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
+from prunarr.logger import get_logger
+
 # Compiled regex patterns for efficient ID extraction
 IMDB_ID_PATTERN = re.compile(r"^imdb:\/\/(tt\d+)")
 TVDB_ID_PATTERN = re.compile(r"^tvdb:\/\/(\d+)")
+
+# Optional cache manager import
+try:
+    from prunarr.cache import CacheManager
+except ImportError:
+    CacheManager = None
 
 
 class TautulliAPI:
@@ -45,15 +53,19 @@ class TautulliAPI:
     Attributes:
         base_url: Tautulli server base URL (normalized)
         api_key: Tautulli API key for authentication
+        cache_manager: Optional cache manager for performance optimization
     """
 
-    def __init__(self, base_url: str, api_key: str) -> None:
+    def __init__(self, base_url: str, api_key: str, cache_manager: Optional["CacheManager"] = None, debug: bool = False, log_level: str = "ERROR") -> None:
         """
         Initialize the Tautulli API client with server connection details.
 
         Args:
             base_url: Base URL of the Tautulli server (e.g., "http://localhost:8181")
             api_key: Tautulli API key for authentication
+            cache_manager: Optional cache manager for performance optimization
+            debug: Enable debug logging
+            log_level: Minimum log level to display
 
         Examples:
             >>> tautulli = TautulliAPI("http://localhost:8181", "your-api-key")
@@ -61,6 +73,10 @@ class TautulliAPI:
         """
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
+        self.cache_manager = cache_manager
+        self.logger = get_logger("prunarr.tautulli", debug=debug, log_level=log_level)
+
+        self.logger.debug(f"Initialized TautulliAPI client: {self.base_url}")
 
     def _request(self, cmd: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -165,8 +181,27 @@ class TautulliAPI:
 
         Note:
             This method implements intelligent pagination to minimize API calls
-            while respecting rate limits and server performance.
+            while respecting rate limits and server performance. Results are cached
+            if cache_manager is available.
         """
+        # Try cache first if available
+        if self.cache_manager and self.cache_manager.is_enabled():
+            cached_data = self.cache_manager.get_tautulli_history(
+                lambda: self._fetch_watch_history(page_size, order_column, order_dir, limit),
+                page_size, order_column, order_dir, limit
+            )
+            return cached_data
+
+        return self._fetch_watch_history(page_size, order_column, order_dir, limit)
+
+    def _fetch_watch_history(
+        self,
+        page_size: int,
+        order_column: str,
+        order_dir: str,
+        limit: Optional[int],
+    ) -> List[Dict[str, Any]]:
+        """Internal method to fetch watch history from API."""
         all_records: List[Dict[str, Any]] = []
         start = 0
         total_records_available = None
@@ -428,7 +463,28 @@ class TautulliAPI:
         }
 
     def get_metadata(self, rating_key: str) -> Dict[str, Any]:
-        """Haal metadata op van een item via rating_key."""
+        """
+        Get metadata for an item via rating_key.
+
+        Results are cached if cache_manager is available.
+
+        Args:
+            rating_key: Plex rating key
+
+        Returns:
+            Metadata dictionary
+        """
+        # Try cache first if available
+        if self.cache_manager and self.cache_manager.is_enabled():
+            return self.cache_manager.get_metadata_imdb(
+                rating_key,
+                lambda: self._fetch_metadata(rating_key)
+            )
+
+        return self._fetch_metadata(rating_key)
+
+    def _fetch_metadata(self, rating_key: str) -> Dict[str, Any]:
+        """Internal method to fetch metadata from API."""
         resp = self._request("get_metadata", params={"rating_key": rating_key})
         return resp.get("data", {})
 

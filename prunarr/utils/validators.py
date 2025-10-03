@@ -6,7 +6,9 @@ configuration values, and data integrity checks.
 """
 
 import re
-from typing import Optional
+from typing import List, Optional
+
+import typer
 
 
 def validate_filesize_string(size_str: str) -> Optional[int]:
@@ -145,3 +147,102 @@ def validate_percentage(value: any) -> Optional[float]:
         return num if 0 <= num <= 100 else None
     except (ValueError, TypeError):
         return None
+
+
+def validate_output_format(output: str, logger) -> None:
+    """
+    Validate output format option for CLI commands.
+
+    Args:
+        output: Output format string to validate
+        logger: Logger instance for error messages
+
+    Raises:
+        typer.Exit: If output format is invalid
+
+    Examples:
+        >>> validate_output_format("table", logger)  # Valid - no error
+        >>> validate_output_format("json", logger)   # Valid - no error
+        >>> validate_output_format("xml", logger)    # Invalid - raises Exit
+    """
+    valid_formats = ["table", "json"]
+    if output not in valid_formats:
+        logger.error(f"Invalid output format: {output}. Must be 'table' or 'json'")
+        raise typer.Exit(1)
+
+
+def validate_sort_option(
+    sort_by: str,
+    valid_options: List[str],
+    logger,
+    option_name: str = "sort option"
+) -> None:
+    """
+    Validate sort option against list of valid options.
+
+    Args:
+        sort_by: Sort option to validate
+        valid_options: List of valid sort options
+        logger: Logger instance for error messages
+        option_name: Name of the option for error message (default: "sort option")
+
+    Raises:
+        typer.Exit: If sort option is invalid
+
+    Examples:
+        >>> validate_sort_option("title", ["title", "date"], logger)  # Valid
+        >>> validate_sort_option("size", ["title", "date"], logger)   # Invalid - raises Exit
+    """
+    if sort_by not in valid_options:
+        options_str = ", ".join(valid_options)
+        logger.error(f"Invalid {option_name}: {sort_by}. Valid options: {options_str}")
+        raise typer.Exit(1)
+
+
+def validate_media_type(media_type: str, logger) -> None:
+    """
+    Validate media type option for Tautulli history filtering.
+
+    Args:
+        media_type: Media type to validate
+        logger: Logger instance for error messages
+
+    Raises:
+        typer.Exit: If media type is invalid
+    """
+    valid_types = ["movie", "show", "episode"]
+    if media_type and media_type not in valid_types:
+        logger.error(f"Invalid media type: {media_type}. Valid types: {', '.join(valid_types)}")
+        raise typer.Exit(1)
+
+
+def validate_log_level(log_level: str) -> str:
+    """
+    Validate and normalize log level.
+
+    Args:
+        log_level: Log level string to validate
+
+    Returns:
+        Normalized log level (uppercase)
+
+    Raises:
+        ValueError: If log level is invalid
+
+    Examples:
+        >>> validate_log_level("debug")
+        'DEBUG'
+        >>> validate_log_level("INFO")
+        'INFO'
+        >>> validate_log_level("invalid")
+        Traceback (most recent call last):
+        ...
+        ValueError: log_level must be one of ['DEBUG', 'INFO', 'WARNING', 'ERROR']
+    """
+    allowed_levels = ["DEBUG", "INFO", "WARNING", "ERROR"]
+    normalized = log_level.upper()
+
+    if normalized not in allowed_levels:
+        raise ValueError(f"log_level must be one of {allowed_levels}, got '{log_level}'")
+
+    return normalized

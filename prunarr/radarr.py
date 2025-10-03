@@ -19,6 +19,14 @@ from typing import Any, Dict, List, Optional
 
 from pyarr import RadarrAPI as PyarrRadarrAPI
 
+from prunarr.logger import get_logger
+
+# Optional cache manager import
+try:
+    from prunarr.cache import CacheManager
+except ImportError:
+    CacheManager = None
+
 
 class RadarrAPI:
     """
@@ -38,15 +46,19 @@ class RadarrAPI:
         _api: Internal pyarr RadarrAPI instance for actual API communication
         base_url: Radarr server base URL (normalized)
         api_key: Radarr API key for authentication
+        cache_manager: Optional cache manager for performance optimization
     """
 
-    def __init__(self, url: str, api_key: str) -> None:
+    def __init__(self, url: str, api_key: str, cache_manager: Optional["CacheManager"] = None, debug: bool = False, log_level: str = "ERROR") -> None:
         """
         Initialize the Radarr API client with server connection details.
 
         Args:
             url: Base URL of the Radarr server (e.g., "http://localhost:7878")
             api_key: Radarr API key for authentication
+            cache_manager: Optional cache manager for performance optimization
+            debug: Enable debug logging
+            log_level: Minimum log level to display
 
         Examples:
             >>> radarr = RadarrAPI("http://localhost:7878", "your-api-key")
@@ -54,7 +66,11 @@ class RadarrAPI:
         """
         self.base_url = url.rstrip("/")
         self.api_key = api_key
+        self.cache_manager = cache_manager
+        self.logger = get_logger("prunarr.radarr", debug=debug, log_level=log_level)
         self._api = PyarrRadarrAPI(self.base_url, api_key)
+
+        self.logger.debug(f"Initialized RadarrAPI client: {self.base_url}")
 
     def get_movie(self, movie_id: Optional[int] = None, **kwargs) -> List[Dict[str, Any]]:
         """
@@ -62,7 +78,7 @@ class RadarrAPI:
 
         This method provides access to Radarr's movie collection with support for
         various filtering options. It can retrieve all movies or specific movies
-        based on provided criteria.
+        based on provided criteria. Results are cached if cache_manager is available.
 
         Args:
             movie_id: Optional specific movie ID to retrieve
@@ -84,9 +100,23 @@ class RadarrAPI:
         Raises:
             Exception: If API communication fails or authentication is invalid
         """
+        # Only cache when retrieving all movies
+        if movie_id is None and not kwargs and self.cache_manager and self.cache_manager.is_enabled():
+            self.logger.debug("Fetching all movies (with cache)")
+            result = self.cache_manager.get_radarr_movies(lambda: self._api.get_movie(**kwargs))
+            self.logger.debug(f"Retrieved {len(result)} movies from Radarr")
+            return result
+
         if movie_id is not None:
-            return self._api.get_movie(movie_id, **kwargs)
-        return self._api.get_movie(**kwargs)
+            self.logger.debug(f"Fetching specific movie: ID={movie_id}")
+            result = self._api.get_movie(movie_id, **kwargs)
+            self.logger.debug(f"Retrieved movie: {result.get('title', 'N/A') if isinstance(result, dict) else len(result)} items")
+            return result
+
+        self.logger.debug(f"Fetching movies with kwargs: {kwargs}")
+        result = self._api.get_movie(**kwargs)
+        self.logger.debug(f"Retrieved {len(result) if isinstance(result, list) else 1} movies from Radarr")
+        return result
 
     def get_tag(self, tag_id: int) -> Dict[str, Any]:
         """
@@ -94,6 +124,7 @@ class RadarrAPI:
 
         Tags in Radarr are used to organize and categorize movies. This method
         retrieves the complete tag information including label and associated metadata.
+        Results are cached if cache_manager is available.
 
         Args:
             tag_id: Unique identifier of the tag to retrieve
@@ -108,6 +139,10 @@ class RadarrAPI:
         Raises:
             Exception: If tag doesn't exist or API communication fails
         """
+        # Use cache if available
+        if self.cache_manager and self.cache_manager.is_enabled():
+            return self.cache_manager.get_radarr_tag(tag_id, lambda: self._api.get_tag(tag_id))
+
         return self._api.get_tag(tag_id)
 
     def delete_movie(

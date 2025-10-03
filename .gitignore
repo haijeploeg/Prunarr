@@ -164,6 +164,9 @@ config.yaml
 *.local.yaml
 *.secret.yaml
 
+# Cache directory
+.prunarr/
+
 # IDE files
 .vscode/
 .idea/

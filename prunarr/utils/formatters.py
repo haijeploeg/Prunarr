@@ -6,7 +6,7 @@ in human-readable formats with Rich markup styling.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Any, Dict, Optional
 
 
 def format_file_size(size_bytes: int) -> str:
@@ -52,6 +52,63 @@ def format_date(date_obj: Optional[datetime]) -> str:
     if not date_obj:
         return "N/A"
     return date_obj.strftime("%Y-%m-%d")
+
+
+def format_date_or_default(date_obj: Optional[datetime], default: str = "N/A") -> str:
+    """
+    Format datetime to YYYY-MM-DD or return default.
+
+    Flexible version of format_date() that allows custom default values.
+
+    Args:
+        date_obj: Datetime object or None
+        default: Default string if date_obj is None (default: "N/A")
+
+    Returns:
+        Formatted date string in "YYYY-MM-DD" format or default value
+
+    Examples:
+        >>> format_date_or_default(datetime(2024, 1, 15))
+        '2024-01-15'
+        >>> format_date_or_default(None)
+        'N/A'
+        >>> format_date_or_default(None, "Never")
+        'Never'
+    """
+    if not date_obj:
+        return default
+    return date_obj.strftime("%Y-%m-%d")
+
+
+def format_timestamp_to_date(timestamp: Any, default: str = "N/A") -> str:
+    """
+    Convert Unix timestamp to formatted date string.
+
+    Args:
+        timestamp: Unix timestamp (int, str, or float)
+        default: Default string if conversion fails (default: "N/A")
+
+    Returns:
+        Formatted date string in "YYYY-MM-DD" format or default value
+
+    Examples:
+        >>> format_timestamp_to_date(1705315800)
+        '2024-01-15'
+        >>> format_timestamp_to_date("1705315800")
+        '2024-01-15'
+        >>> format_timestamp_to_date(None)
+        'N/A'
+        >>> format_timestamp_to_date("invalid", "Unknown")
+        'Unknown'
+    """
+    if not timestamp:
+        return default
+
+    try:
+        dt = datetime.fromtimestamp(int(timestamp))
+        return dt.strftime("%Y-%m-%d")
+    except (ValueError, TypeError):
+        return default
 
 
 def format_timestamp(timestamp: str) -> str:
@@ -193,3 +250,58 @@ def format_episode_count(watched: int, total: int) -> str:
         return f"[yellow]{watched}/{total}[/yellow]"
     else:
         return f"[red]{watched}/{total}[/red]"
+
+
+def safe_str(value: Any, default: str = "N/A") -> str:
+    """
+    Safely convert value to string with default fallback.
+
+    Commonly used pattern in table row creation to handle None values.
+
+    Args:
+        value: Value to convert to string
+        default: Default string if value is None or empty (default: "N/A")
+
+    Returns:
+        String representation of value or default
+
+    Examples:
+        >>> safe_str(None)
+        'N/A'
+        >>> safe_str("test")
+        'test'
+        >>> safe_str(123)
+        '123'
+        >>> safe_str("", default="Unknown")
+        'Unknown'
+    """
+    if value is None or value == "":
+        return default
+    return str(value)
+
+
+def safe_get(data: Dict[str, Any], key: str, default: str = "N/A") -> str:
+    """
+    Safely get value from dict and convert to string.
+
+    Combines dict.get() with str() conversion and None handling.
+    Commonly used pattern: str(movie.get("title", "N/A"))
+
+    Args:
+        data: Dictionary to get value from
+        key: Key to look up
+        default: Default string if key not found or value is None
+
+    Returns:
+        String representation of value or default
+
+    Examples:
+        >>> safe_get({"title": "Test"}, "title")
+        'Test'
+        >>> safe_get({"title": None}, "title")
+        'N/A'
+        >>> safe_get({}, "missing", "Unknown")
+        'Unknown'
+    """
+    value = data.get(key)
+    return safe_str(value, default)

@@ -24,8 +24,46 @@ user_tag_regex: "^\\d+ - (.+)$"
 # user_tag_regex: "^\\[(.+)\\]$"          # For tags like "[john_doe]"
 # user_tag_regex: "^req_by_(.+)$"         # For tags like "req_by_alice"
 
+# Cache Configuration (Optional)
+# Caching significantly improves performance for large libraries
+cache_enabled: true                    # Enable/disable caching (default: true)
+# cache_dir: ~/.prunarr/cache          # Custom cache directory (default: ~/.prunarr/cache)
+
+# Cache TTL (Time To Live) in seconds
+# Adjust these based on how often your data changes
+cache_ttl_movies: 3600                # Radarr movies (default: 1 hour)
+cache_ttl_series: 3600                # Sonarr series (default: 1 hour)
+cache_ttl_history: 300                # Tautulli history (default: 5 minutes)
+cache_ttl_tags: 86400                 # Tags (default: 24 hours)
+cache_ttl_metadata: 604800            # IMDB/TVDB metadata (default: 7 days)
+
+# Cache size limit
+cache_max_size_mb: 100                # Maximum cache size in MB (default: 100 MB)
+
+# Logging Configuration
+# Default log level is ERROR (only shows errors)
+# Set to INFO to see general operational messages
+# Set to DEBUG for detailed troubleshooting (or use --debug flag)
+log_level: ERROR                      # Log level: DEBUG, INFO, WARNING, ERROR (default: ERROR)
+
 # Note: PrunArr uses command-line parameters for operational settings
 # The --days-watched parameter controls retention periods
 # Examples:
 #   prunarr movies remove --days-watched 60    # Remove movies watched 60+ days ago
 #   prunarr series remove --days-watched 90    # Remove series watched 90+ days ago
+#
+# Cache Management:
+#   prunarr cache init       # Quick init - cache movies, series, history, tags
+#   prunarr cache init --full # Full init - also pre-fetch all episodes (slower)
+#   prunarr cache status     # Show cache statistics
+#   prunarr cache clear      # Clear cached data
+#   prunarr cache refresh    # Refresh cached data
+#
+# Cache Behavior:
+#   - Default mode: Fast initialization, episodes cached on-demand when first accessed
+#   - Full mode (--full): Pre-fetches everything including all episodes (slower init, instant everywhere)
+#   - On-demand: Individual series details and episodes are cached automatically when accessed
+#
+# Best Practice:
+#   - Use default 'cache init' for quick setup (recommended)
+#   - Use 'cache init --full' if you want everything pre-cached (takes longer)

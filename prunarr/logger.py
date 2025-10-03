@@ -24,23 +24,32 @@ class PrunArrLogger:
     Enhanced logger implementation with Rich console styling and comprehensive log level support.
 
     This logger provides a unified logging interface for the PrunArr application,
-    featuring Rich markup styling, timestamp formatting, and configurable debug output.
+    featuring Rich markup styling, timestamp formatting, and configurable log levels.
     All log messages are consistently formatted with appropriate visual indicators
     and color coding for different log levels.
 
     Attributes:
         console: Rich console instance for styled output
-        debug_enabled: Flag controlling debug message visibility
+        log_level: Current log level (DEBUG, INFO, WARNING, ERROR)
         logger_name: Identifier for this logger instance
     """
 
-    def __init__(self, name: str = "prunarr", debug: bool = False) -> None:
+    # Log level priority (lower number = higher priority)
+    LEVEL_PRIORITY = {
+        "DEBUG": 0,
+        "INFO": 1,
+        "WARNING": 2,
+        "ERROR": 3,
+    }
+
+    def __init__(self, name: str = "prunarr", debug: bool = False, log_level: str = "ERROR") -> None:
         """
         Initialize the PrunArr logger with configuration options.
 
         Args:
             name: Logger identifier for tracking message sources
-            debug: Enable debug message output and detailed logging
+            debug: Enable debug logging (overrides log_level if True)
+            log_level: Minimum log level to display (DEBUG, INFO, WARNING, ERROR)
 
         Examples:
             Basic logger:
@@ -50,10 +59,31 @@ class PrunArrLogger:
             Debug logger:
             >>> debug_logger = PrunArrLogger("series", debug=True)
             >>> debug_logger.debug("Detailed processing information")
+
+            Info logger:
+            >>> info_logger = PrunArrLogger("cache", log_level="INFO")
+            >>> info_logger.info("Cache initialized")
         """
         self.console = Console(stderr=True)
-        self.debug_enabled = debug
+        # If debug flag is set, use DEBUG level, otherwise use provided log_level
+        self.log_level = "DEBUG" if debug else log_level.upper()
         self.logger_name = name
+        # Backward compatibility property for tests
+        self.debug_enabled = debug
+
+    def _should_log(self, level: str) -> bool:
+        """
+        Check if a message at the given level should be logged.
+
+        Args:
+            level: The log level to check
+
+        Returns:
+            True if the message should be logged, False otherwise
+        """
+        current_priority = self.LEVEL_PRIORITY.get(self.log_level, 0)
+        message_priority = self.LEVEL_PRIORITY.get(level.upper(), 0)
+        return message_priority >= current_priority
 
     def _get_timestamp(self) -> str:
         """
@@ -98,7 +128,7 @@ class PrunArrLogger:
         """
         Log debug message with detailed information (only when debug mode is enabled).
 
-        Debug messages are only displayed when the logger is initialized with debug=True.
+        Debug messages are only displayed when the log level is DEBUG.
         These messages are useful for troubleshooting and development but should not
         appear in normal operation.
 
@@ -110,7 +140,7 @@ class PrunArrLogger:
             >>> logger.debug("Processing series data", "Found 42 episodes")
             >>> logger.debug("API call completed successfully")
         """
-        if not self.debug_enabled:
+        if not self._should_log("DEBUG"):
             return
 
         formatted_msg = self._format_message("debug", "🔍", "cyan", message, extra_detail)
@@ -131,6 +161,9 @@ class PrunArrLogger:
             >>> logger.info("Retrieving movie list from Radarr")
             >>> logger.info("Configuration loaded successfully", "Using config.yaml")
         """
+        if not self._should_log("INFO"):
+            return
+
         formatted_msg = self._format_message("info", "ℹ️", "blue", message, extra_detail)
         self.console.print(formatted_msg)
 
@@ -149,6 +182,9 @@ class PrunArrLogger:
             >>> logger.warning("No movies found matching criteria")
             >>> logger.warning("API rate limit approaching", "Consider reducing request frequency")
         """
+        if not self._should_log("WARNING"):
+            return
+
         formatted_msg = self._format_message("warning", "⚠️", "yellow", message, extra_detail)
         self.console.print(formatted_msg)
 
@@ -167,47 +203,50 @@ class PrunArrLogger:
             >>> logger.error("Failed to connect to Radarr API")
             >>> logger.error("Configuration validation failed", "Missing required API key")
         """
+        if not self._should_log("ERROR"):
+            return
+
         formatted_msg = self._format_message("error", "❌", "red", message, extra_detail)
         self.console.print(formatted_msg)
 
     def success(self, message: str, extra_detail: Optional[str] = None) -> None:
         """
-        Log success message for completed operations and achievements.
+        Log success message for successful operations.
 
-        Success messages indicate that operations completed successfully
-        and provide positive feedback to users.
+        Success messages indicate that an operation completed successfully.
+        Note: Success messages are always shown regardless of log level.
 
         Args:
             message: Primary success message
             extra_detail: Optional additional success details
 
         Examples:
-            >>> logger.success("Movie removal completed")
-            >>> logger.success("Found 25 movies", "Ready for processing")
+            >>> logger.success("Movie removed successfully")
+            >>> logger.success("Cache initialized", "All data loaded")
         """
         formatted_msg = self._format_message("success", "✅", "green", message, extra_detail)
         self.console.print(formatted_msg)
 
     def progress(self, message: str, extra_detail: Optional[str] = None) -> None:
         """
-        Log progress message for ongoing operations and status updates.
+        Log progress message for ongoing operations.
 
-        Progress messages keep users informed about long-running operations
-        and provide status updates during processing.
+        Progress messages indicate that work is being done.
+        Note: Progress messages are always shown regardless of log level.
 
         Args:
             message: Primary progress message
-            extra_detail: Optional additional progress information
+            extra_detail: Optional additional progress details
 
         Examples:
-            >>> logger.progress("Processing movie library")
-            >>> logger.progress("Analyzing watch history", "Step 2 of 4")
+            >>> logger.progress("Processing movies", "10 of 50 complete")
+            >>> logger.progress("Downloading data")
         """
-        formatted_msg = self._format_message("progress", "⏳", "magenta", message, extra_detail)
+        formatted_msg = self._format_message("progress", "⏳", "cyan", message, extra_detail)
         self.console.print(formatted_msg)
 
 
-def get_logger(name: str = "prunarr", debug: bool = False) -> PrunArrLogger:
+def get_logger(name: str = "prunarr", debug: bool = False, log_level: str = "ERROR") -> PrunArrLogger:
     """
     Factory function to create and configure PrunArr logger instances.
 
@@ -217,7 +256,8 @@ def get_logger(name: str = "prunarr", debug: bool = False) -> PrunArrLogger:
 
     Args:
         name: Logger identifier for tracking message sources across modules
-        debug: Enable debug logging for detailed troubleshooting output
+        debug: Enable debug logging (overrides log_level if True)
+        log_level: Minimum log level to display (DEBUG, INFO, WARNING, ERROR)
 
     Returns:
         Configured PrunArrLogger instance ready for use
@@ -231,8 +271,12 @@ def get_logger(name: str = "prunarr", debug: bool = False) -> PrunArrLogger:
         >>> debug_logger = get_logger("series", debug=True)
         >>> debug_logger.debug("Detailed API response analysis")
 
+        Info logger:
+        >>> info_logger = get_logger("cache", log_level="INFO")
+        >>> info_logger.info("Cache initialized")
+
         Component-specific logger:
         >>> api_logger = get_logger("radarr_api", debug=True)
         >>> api_logger.debug("Making API call to /api/v3/movie")
     """
-    return PrunArrLogger(name, debug)
+    return PrunArrLogger(name, debug, log_level)

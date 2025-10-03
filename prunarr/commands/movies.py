@@ -5,58 +5,31 @@ This module provides commands for managing movies in Radarr,
 including listing with advanced filtering, watch status tracking, and removal capabilities.
 """
 
+import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 import typer
 from rich.console import Console
-from rich.table import Table
 
 from prunarr.config import Settings
 from prunarr.logger import get_logger
 from prunarr.prunarr import PrunArr
-from prunarr.utils import format_file_size, format_movie_watch_status
+from prunarr.utils import (
+    format_date_or_default,
+    format_file_size,
+    format_movie_watch_status,
+    safe_get,
+)
+from prunarr.utils.parsers import parse_file_size, parse_iso_datetime
+from prunarr.utils.validators import validate_output_format, validate_sort_option
+from prunarr.utils.serializers import prepare_datetime_for_json, prepare_movie_for_json
+from prunarr.utils.tables import create_movies_table
 
 console = Console()
 app = typer.Typer(help="Manage movies in Radarr.", rich_markup_mode="rich")
 
 
-def parse_file_size(size_str: str) -> int:
-    """
-    Parse file size string to bytes.
-
-    Args:
-        size_str: File size string (e.g., "1GB", "500MB", "2.5GB")
-
-    Returns:
-        File size in bytes
-
-    Raises:
-        ValueError: If the size string is invalid
-    """
-    import re
-
-    # Remove spaces and convert to uppercase
-    size_str = size_str.replace(" ", "").upper()
-
-    # Parse number and unit
-    match = re.match(r"^(\d+(?:\.\d+)?)(B|KB|MB|GB|TB)$", size_str)
-    if not match:
-        raise ValueError(f"Invalid file size format: {size_str}")
-
-    number = float(match.group(1))
-    unit = match.group(2)
-
-    # Convert to bytes
-    multipliers = {
-        "B": 1,
-        "KB": 1024,
-        "MB": 1024**2,
-        "GB": 1024**3,
-        "TB": 1024**4,
-    }
-
-    return int(number * multipliers[unit])
 
 
 def sort_movies(
@@ -80,12 +53,7 @@ def sort_movies(
         elif sort_by == "date":
             # Sort by added date
             added = movie.get("added")
-            if added:
-                try:
-                    return datetime.fromisoformat(added.replace("Z", "+00:00"))
-                except (ValueError, AttributeError):
-                    return datetime.min
-            return datetime.min
+            return parse_iso_datetime(added) or datetime.min
         elif sort_by == "filesize":
             return movie.get("file_size", 0)
         elif sort_by == "watched_date":
@@ -115,13 +83,9 @@ def validate_and_parse_options(sort_by: str, min_filesize: Optional[str], logger
     Raises:
         typer.Exit: If validation fails
     """
-    # Validate sort_by parameter
+    # Validate sort_by parameter using shared validator
     valid_sort_options = ["title", "date", "filesize", "watched_date", "days_watched"]
-    if sort_by not in valid_sort_options:
-        logger.error(
-            f"Invalid sort option: {sort_by}. Valid options: {', '.join(valid_sort_options)}"
-        )
-        raise typer.Exit(1)
+    validate_sort_option(sort_by, valid_sort_options, logger, "sort option")
 
     # Parse minimum file size if provided
     min_filesize_bytes = None
@@ -305,6 +269,7 @@ def list_movies(
     min_filesize: Optional[str] = typer.Option(
         None, "--min-filesize", help="Minimum file size (e.g., '1GB', '500MB', '2.5GB')"
     ),
+    output: str = typer.Option("table", "--output", "-o", help="Output format: table or json"),
 ):
     """
     [bold cyan]List movies in Radarr with advanced filtering options.[/bold cyan]
@@ -367,19 +332,29 @@ def list_movies(
     settings: Settings = context_obj["settings"]
     debug: bool = context_obj["debug"]
 
-    logger = get_logger("movies", debug=debug)
+    logger = get_logger("movies", debug=debug, log_level=settings.log_level)
+
+    # Validate output format using shared validator
+    validate_output_format(output, logger)
 
     # Validate and parse options
     sort_by, min_filesize_bytes = validate_and_parse_options(sort_by, min_filesize, logger)
 
     logger.info("Retrieving movies from Radarr with watch status...")
-    prunarr = PrunArr(settings)
+    prunarr = PrunArr(settings, debug=debug)
 
     try:
         # Get movies with watch status
         movies = prunarr.get_movies_with_watch_status(
             include_untagged=include_untagged, username_filter=username
         )
+
+        # Check and log cache status
+        if prunarr.cache_manager:
+            prunarr.check_and_log_cache_status(
+                prunarr.cache_manager.KEY_RADARR_MOVIES,
+                logger
+            )
 
         # Apply filtering using shared function
         filtered_movies = apply_movie_filters(
@@ -404,55 +379,62 @@ def list_movies(
             logger.warning("No movies found matching the specified criteria")
             return
 
-        logger.success(f"Found {len(filtered_movies)} movies")
+        logger.info(f"Found {len(filtered_movies)} movies")
 
-        # Create Rich table
-        table = Table(title="Radarr Movies")
-        table.add_column("Title", style="bright_white", min_width=25)
-        table.add_column("Year", style="yellow", width=6)
-        table.add_column("User", style="blue", width=15)
-        table.add_column("Watch Status", width=15)
-        table.add_column("Watched By", style="cyan", width=18)
-        table.add_column("Days Ago", style="green", width=8)
-        table.add_column("File Size", style="magenta", width=10)
-        table.add_column("Added", style="dim", width=12)
+        # Output based on format
+        if output == "json":
+            # Prepare JSON-serializable data using shared serializer
+            json_output = []
+            for movie in filtered_movies:
+                json_output.append({
+                    "id": movie.get("id"),
+                    "title": movie.get("title"),
+                    "year": movie.get("year"),
+                    "user": movie.get("user"),
+                    "watch_status": movie.get("watch_status"),
+                    "watched_by": movie.get("watched_by"),
+                    "days_since_watched": movie.get("days_since_watched"),
+                    "file_size_bytes": movie.get("file_size", 0),
+                    "added": prepare_datetime_for_json(parse_iso_datetime(movie.get("added"))),
+                    "most_recent_watch": prepare_datetime_for_json(movie.get("most_recent_watch")),
+                    "imdb_id": movie.get("imdb_id"),
+                    "tmdb_id": movie.get("tmdb_id"),
+                })
+            print(json.dumps(json_output, indent=2))
+        else:
+            # Create Rich table using factory
+            table = create_movies_table()
 
-        # Populate table
-        for movie in filtered_movies:
-            # Format user display
-            user_display = movie.get("user") or "[dim]Untagged[/dim]"
+            # Populate table
+            for movie in filtered_movies:
+                # Format user display
+                user_display = movie.get("user") or "[dim]Untagged[/dim]"
 
-            # Format days since watched
-            days_ago = (
-                str(movie.get("days_since_watched", ""))
-                if movie.get("days_since_watched") is not None
-                else "N/A"
-            )
+                # Format days since watched
+                days_ago = (
+                    str(movie.get("days_since_watched", ""))
+                    if movie.get("days_since_watched") is not None
+                    else "N/A"
+                )
 
-            # Format watched by (handle multiple users)
-            watched_by = movie.get("watched_by") or "N/A"
+                # Format watched by (handle multiple users)
+                watched_by = movie.get("watched_by") or "N/A"
 
-            # Format added date
-            added_date = "N/A"
-            if movie.get("added"):
-                try:
-                    added_dt = datetime.fromisoformat(movie.get("added").replace("Z", "+00:00"))
-                    added_date = added_dt.strftime("%Y-%m-%d")
-                except (ValueError, AttributeError):
-                    added_date = "N/A"
+                # Format added date
+                added_date = format_date_or_default(parse_iso_datetime(movie.get("added")))
 
-            table.add_row(
-                str(movie.get("title", "N/A")),
-                str(movie.get("year", "N/A")),
-                user_display,
-                format_movie_watch_status(movie.get("watch_status", "unknown")),
-                watched_by,
-                days_ago,
-                format_file_size(movie.get("file_size", 0)),
-                added_date,
-            )
+                table.add_row(
+                    safe_get(movie, "title"),
+                    safe_get(movie, "year"),
+                    user_display,
+                    format_movie_watch_status(movie.get("watch_status", "unknown")),
+                    watched_by,
+                    days_ago,
+                    format_file_size(movie.get("file_size", 0)),
+                    added_date,
+                )
 
-        console.print(table)
+            console.print(table)
 
         # Log applied filters in debug mode
         if debug:
@@ -557,7 +539,7 @@ def remove_movies(
     settings: Settings = context_obj["settings"]
     debug: bool = context_obj["debug"]
 
-    logger = get_logger("movies", debug=debug)
+    logger = get_logger("movies", debug=debug, log_level=settings.log_level)
 
     # Validate and parse options
     sort_by, min_filesize_bytes = validate_and_parse_options(sort_by, min_filesize, logger)
@@ -570,7 +552,7 @@ def remove_movies(
     else:
         logger.info("Finding movies for removal with filters...")
 
-    prunarr = PrunArr(settings)
+    prunarr = PrunArr(settings, debug=debug)
 
     try:
         # Get all movies with watch status first
@@ -601,23 +583,22 @@ def remove_movies(
         # Show what will be removed
         logger.info(f"Found {len(movies_to_remove)} movies for removal")
 
-        # Create table showing what would be removed
-        table = Table(title="Movies to Remove" if not dry_run else "Movies to Remove (Dry Run)")
-        table.add_column("Title", style="bright_white", min_width=25)
-        table.add_column("Year", style="yellow", width=6)
-        table.add_column("User", style="blue", width=15)
-        table.add_column("Watched By", style="cyan", width=18)
-        table.add_column("Days Ago", style="green", width=8)
-        table.add_column("File Size", style="magenta", width=10)
+        # Create table showing what would be removed using factory
+        title = "Movies to Remove (Dry Run)" if dry_run else "Movies to Remove"
+        table = create_movies_table(title=title)
+
+        # Remove "Added" column as it's not needed for removal preview
+        # Note: We'll create rows without the "Added" value
 
         for movie in movies_to_remove:
             table.add_row(
-                str(movie.get("title", "N/A")),
-                str(movie.get("year", "N/A")),
-                str(movie.get("user", "N/A")),
-                str(movie.get("watched_by", "N/A")),
-                str(movie.get("days_since_watched", "N/A")),
+                safe_get(movie, "title"),
+                safe_get(movie, "year"),
+                safe_get(movie, "user"),
+                safe_get(movie, "watched_by"),
+                safe_get(movie, "days_since_watched"),
                 format_file_size(movie.get("file_size", 0)),
+                "",  # Empty "Added" column since it's not needed for removal
             )
 
         console.print(table)
@@ -659,8 +640,7 @@ def remove_movies(
 
             console.print(f"[dim]Applied filters: {', '.join(filter_summary)}[/dim]")
 
-            confirm = typer.confirm("\nAre you sure you want to proceed with deletion?")
-            if not confirm:
+            if not typer.confirm("\nAre you sure you want to proceed with deletion?"):
                 logger.info("Removal cancelled by user")
                 return
 
@@ -683,7 +663,7 @@ def remove_movies(
             except Exception as e:
                 logger.error(f"Error removing {title}: {str(e)}")
 
-        logger.success(
+        logger.info(
             f"Successfully removed {removed_count} out of {len(movies_to_remove)} movies"
         )
 

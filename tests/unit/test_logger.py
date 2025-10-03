@@ -90,7 +90,7 @@ class TestPrunArrLogger:
         mock_console = Mock()
         mock_console_class.return_value = mock_console
 
-        logger = PrunArrLogger()
+        logger = PrunArrLogger(log_level="INFO")
         logger.info("Info message", "Additional context")
 
         mock_console.print.assert_called_once()
@@ -105,7 +105,7 @@ class TestPrunArrLogger:
         mock_console = Mock()
         mock_console_class.return_value = mock_console
 
-        logger = PrunArrLogger()
+        logger = PrunArrLogger(log_level="WARNING")
         logger.warning("Warning message")
 
         mock_console.print.assert_called_once()
@@ -187,7 +187,7 @@ class TestPrunArrLogger:
             mock_console = Mock()
             mock_console_class.return_value = mock_console
 
-            logger = PrunArrLogger()
+            logger = PrunArrLogger(log_level="INFO")
             logger.info("Simple message")
 
             mock_console.print.assert_called_once()
@@ -238,7 +238,7 @@ class TestLoggerIntegration:
     def test_real_console_output(self, capsys):
         """Test that logger actually outputs to console (integration test)."""
         # Note: This test uses capsys to capture real stderr output
-        logger = PrunArrLogger("test")
+        logger = PrunArrLogger("test", log_level="INFO")
         logger.info("Test message")
 
         # Capture the output
@@ -268,7 +268,7 @@ class TestLoggerIntegration:
 
     def test_timestamp_in_real_output(self, capsys):
         """Test that timestamps appear in real output."""
-        logger = PrunArrLogger("test")
+        logger = PrunArrLogger("test", log_level="INFO")
         logger.info("Timestamped message")
 
         captured = capsys.readouterr()
@@ -281,7 +281,7 @@ class TestLoggerIntegration:
 
     def test_rich_markup_in_output(self, capsys):
         """Test that Rich markup is processed in real output."""
-        logger = PrunArrLogger("test")
+        logger = PrunArrLogger("test", log_level="INFO")
         logger.info("Test message")
 
         captured = capsys.readouterr()

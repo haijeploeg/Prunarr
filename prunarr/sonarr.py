@@ -21,6 +21,14 @@ from typing import Any, Dict, List, Optional
 import requests
 from pyarr import SonarrAPI as PyarrSonarrAPI
 
+from prunarr.logger import get_logger
+
+# Optional cache manager import
+try:
+    from prunarr.cache import CacheManager
+except ImportError:
+    CacheManager = None
+
 
 class SonarrAPI:
     """
@@ -42,15 +50,19 @@ class SonarrAPI:
         _api: Internal pyarr SonarrAPI instance for standard operations
         _base_url: Sonarr server base URL (normalized)
         _api_key: Sonarr API key for authentication
+        cache_manager: Optional cache manager for performance optimization
     """
 
-    def __init__(self, url: str, api_key: str) -> None:
+    def __init__(self, url: str, api_key: str, cache_manager: Optional["CacheManager"] = None, debug: bool = False, log_level: str = "ERROR") -> None:
         """
         Initialize the Sonarr API client with server connection details.
 
         Args:
             url: Base URL of the Sonarr server (e.g., "http://localhost:8989")
             api_key: Sonarr API key for authentication
+            cache_manager: Optional cache manager for performance optimization
+            debug: Enable debug logging
+            log_level: Minimum log level to display
 
         Examples:
             >>> sonarr = SonarrAPI("http://localhost:8989", "your-api-key")
@@ -58,7 +70,11 @@ class SonarrAPI:
         """
         self._base_url = url.rstrip("/")
         self._api_key = api_key
+        self.cache_manager = cache_manager
+        self.logger = get_logger("prunarr.sonarr", debug=debug, log_level=log_level)
         self._api = PyarrSonarrAPI(self._base_url, api_key)
+
+        self.logger.debug(f"Initialized SonarrAPI client: {self._base_url}")
 
     def get_series(self, series_id: Optional[int] = None, **kwargs) -> List[Dict[str, Any]]:
         """
@@ -66,7 +82,7 @@ class SonarrAPI:
 
         This method provides access to Sonarr's series collection with support for
         various filtering options. It can retrieve all series or specific series
-        based on provided criteria.
+        based on provided criteria. Results are cached if cache_manager is available.
 
         Args:
             series_id: Optional specific series ID to retrieve
@@ -89,6 +105,10 @@ class SonarrAPI:
         Raises:
             Exception: If API communication fails or authentication is invalid
         """
+        # Only cache when retrieving all series
+        if series_id is None and not kwargs and self.cache_manager and self.cache_manager.is_enabled():
+            return self.cache_manager.get_sonarr_series(lambda: self._api.get_series(**kwargs))
+
         if series_id is not None:
             return self._api.get_series(series_id, **kwargs)
         return self._api.get_series(**kwargs)
@@ -99,6 +119,7 @@ class SonarrAPI:
 
         This method fetches comprehensive series data including seasons, episodes,
         statistics, and metadata for a single series identified by its Sonarr ID.
+        Results are cached if cache_manager is available.
 
         Args:
             series_id: Unique Sonarr series identifier
@@ -115,6 +136,12 @@ class SonarrAPI:
         Raises:
             Exception: If series doesn't exist or API communication fails
         """
+        # Use cache if available
+        if self.cache_manager and self.cache_manager.is_enabled():
+            return self.cache_manager.get_sonarr_series_detail(
+                series_id, lambda: self._api.get_series(series_id)
+            )
+
         return self._api.get_series(series_id)
 
     def get_episode(self, series_id: Optional[int] = None, **kwargs) -> List[Dict[str, Any]]:
@@ -158,7 +185,7 @@ class SonarrAPI:
         This method uses direct HTTP calls to Sonarr's API to bypass potential
         limitations in the pyarr library. It provides comprehensive episode data
         including file information and metadata, with multiple fallback mechanisms
-        for maximum reliability.
+        for maximum reliability. Results are cached if cache_manager is available.
 
         Args:
             series_id: Sonarr series ID to retrieve episodes for
@@ -179,6 +206,22 @@ class SonarrAPI:
             2. pyarr with seriesId parameter (fallback 1)
             3. pyarr with series parameter (fallback 2)
             4. Empty list if all methods fail (graceful degradation)
+        """
+        # Use cache if available
+        if self.cache_manager and self.cache_manager.is_enabled():
+            return self.cache_manager.get_sonarr_episodes(series_id, lambda: self._fetch_episodes(series_id))
+
+        return self._fetch_episodes(series_id)
+
+    def _fetch_episodes(self, series_id: int) -> List[Dict[str, Any]]:
+        """
+        Internal method to fetch episodes (extracted for caching).
+
+        Args:
+            series_id: Sonarr series ID
+
+        Returns:
+            List of episode dictionaries
         """
         try:
             # Primary method: Direct HTTP call to Sonarr API bypassing pyarr limitations
@@ -226,6 +269,7 @@ class SonarrAPI:
 
         Tags in Sonarr are used to organize and categorize series. This method
         retrieves the complete tag information including label and associated metadata.
+        Results are cached if cache_manager is available.
 
         Args:
             tag_id: Unique identifier of the tag to retrieve
@@ -240,6 +284,10 @@ class SonarrAPI:
         Raises:
             Exception: If tag doesn't exist or API communication fails
         """
+        # Use cache if available
+        if self.cache_manager and self.cache_manager.is_enabled():
+            return self.cache_manager.get_sonarr_tag(tag_id, lambda: self._api.get_tag(tag_id))
+
         return self._api.get_tag(tag_id)
 
     def delete_series(

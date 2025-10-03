@@ -17,6 +17,9 @@ PrunArr helps you maintain clean, organized media libraries by automatically rem
 - 🔍 **Multi-dimensional Filtering**: Filter by user, status, date, size, and custom criteria
 - 🛡️ **Safety-first Design**: Multiple confirmation steps, dry-run modes, and detailed previews
 - 🎨 **Rich Console Interface**: Color-coded tables, progress bars, and intuitive navigation
+- ⚡ **Performance Caching**: Intelligent caching system minimizes API calls and improves response times
+- 📝 **Configurable Logging**: Priority-based log levels (DEBUG, INFO, WARNING, ERROR) with detailed tracing
+- 🔄 **JSON Output Support**: Machine-readable output for automation and scripting alongside human-friendly tables
 
 ## Installation
 
@@ -65,6 +68,17 @@ tautulli_url: "https://tautulli.yourdomain.com"
 
 # Optional: Customize user tag pattern (default works for most setups)
 user_tag_regex: "^\\d+ - (.+)$"
+
+# Logging Configuration
+log_level: ERROR  # DEBUG, INFO, WARNING, ERROR (default: ERROR)
+
+# Cache Configuration (optional - improves performance)
+cache_enabled: true
+cache_dir: ~/.prunarr/cache
+cache_max_size_mb: 100
+cache_ttl_movies: 3600      # 1 hour
+cache_ttl_series: 3600      # 1 hour
+cache_ttl_history: 300      # 5 minutes
 ```
 
 ### Method 2: Environment Variables
@@ -93,6 +107,10 @@ export USER_TAG_REGEX="^\\d+ - (.+)$"
 | `tautulli_api_key` | API key from Tautulli Settings → Web Interface | `a5aa5211c0a04e21...` | Required |
 | `tautulli_url` | Tautulli server URL (with protocol) | `https://tautulli.example.com` | Required |
 | `user_tag_regex` | Regex for extracting usernames from tags | `^\\d+ - (.+)$` | `^\\d+ - (.+)$` |
+| `log_level` | Minimum log level to display | `INFO` | `ERROR` |
+| `cache_enabled` | Enable performance caching | `true` | `true` |
+| `cache_dir` | Cache storage directory | `~/.prunarr/cache` | `~/.prunarr/cache` |
+| `cache_max_size_mb` | Maximum cache size in MB | `100` | `100` |
 
 ### Configuration Priority
 
@@ -139,8 +157,13 @@ prunarr --help
 # Use custom configuration file
 prunarr --config /path/to/config.yaml <command>
 
-# Enable detailed debug logging
+# Enable detailed debug logging (overrides log_level)
 prunarr --debug <command>
+
+# Get JSON output for automation
+prunarr movies list --output json
+prunarr series get "Breaking Bad" --output json
+prunarr cache status --output json
 ```
 
 ### 🎬 Movie Management (`prunarr movies`)
@@ -179,6 +202,10 @@ prunarr movies list --sort-by days_watched
 
 # Combine multiple filters
 prunarr movies list --username "alice" --watched --min-filesize "1GB" --days-watched 60
+
+# Get JSON output for scripts/automation
+prunarr movies list --output json
+prunarr movies list --username "alice" --output json > movies.json
 ```
 
 #### Remove Movies Safely
@@ -227,6 +254,10 @@ prunarr series list --series "the office" --season 2
 
 # Limit results for quick overview
 prunarr series list --limit 10
+
+# Get JSON output for automation
+prunarr series list --output json
+prunarr series list --watched --output json > watched-series.json
 ```
 
 #### Get Detailed Series Information
@@ -249,6 +280,10 @@ prunarr series get "Game of Thrones" --watched-only
 
 # Show watch info for all users (not just requester)
 prunarr series get "Westworld" --all-watchers
+
+# Get JSON output with complete episode data
+prunarr series get "Breaking Bad" --output json
+prunarr series get 123 --output json > series-details.json
 ```
 
 #### Remove Series with Safety Controls
@@ -299,6 +334,13 @@ prunarr history list --username "john" --media-type movie --watched
 
 # Custom result limits
 prunarr history list --limit 50
+
+# Get all available history records
+prunarr history list --all
+
+# JSON output for analysis
+prunarr history list --output json
+prunarr history list --username "alice" --output json > user-history.json
 ```
 
 #### Get Detailed History Information
@@ -310,6 +352,39 @@ prunarr history get 2792
 # Use history ID from the list command output
 prunarr history list --limit 5
 prunarr history get 12345
+
+# JSON output with all metadata
+prunarr history get 2792 --output json
+```
+
+### 💾 Cache Management (`prunarr cache`)
+
+#### Initialize and Manage Cache
+
+```bash
+# Initialize cache for improved performance
+prunarr cache init
+
+# Full initialization (includes all episodes - slower but complete)
+prunarr cache init --full
+
+# Check cache status and statistics
+prunarr cache status
+
+# Get cache stats as JSON
+prunarr cache status --output json
+
+# Clear specific cache types
+prunarr cache clear --type movies
+prunarr cache clear --type series
+prunarr cache clear --type history
+
+# Clear all cache
+prunarr cache clear --type all
+
+# Refresh cache (clear and refetch)
+prunarr cache refresh --type history
+prunarr cache refresh --type all
 ```
 
 ### 🔧 Advanced Usage Patterns
@@ -343,6 +418,14 @@ prunarr --debug history list --username "user"
 
 # Configuration testing
 prunarr --debug --config test-config.yaml movies list --limit 1
+
+# Check cache operations
+prunarr --debug cache init
+prunarr --debug cache status
+
+# Set log level in config for persistent logging
+# In config.yaml: log_level: INFO
+prunarr movies list  # Will show INFO level logs
 ```
 
 #### Automation-friendly Commands
@@ -354,6 +437,13 @@ prunarr --config /etc/prunarr/config.yaml series remove --days-watched 120 --yes
 
 # Safe automated preview (for monitoring)
 prunarr movies remove --dry-run > /tmp/prunarr-preview.log
+
+# JSON output for integration with other tools
+prunarr --config /etc/prunarr/config.yaml movies list --output json | jq '.[] | select(.days_since_watched > 90)'
+prunarr series list --watched --output json | process-data.py
+
+# Initialize cache before automated runs
+prunarr --config /etc/prunarr/config.yaml cache init
 ```
 
 ### 🎨 Rich Console Features
@@ -365,6 +455,8 @@ PrunArr provides beautiful, informative output:
 - **Progress Indicators**: Real-time operation feedback
 - **Detailed Tables**: Comprehensive information at a glance
 - **Smart Formatting**: Consistent, easy-to-read output
+- **Dual Output Modes**: Human-friendly tables or machine-readable JSON
+- **Configurable Logging**: Control verbosity with log levels (ERROR, WARNING, INFO, DEBUG)
 
 ### 🔍 Filter Combinations
 
@@ -462,6 +554,22 @@ PrunArr uses a sophisticated multi-step process to safely and intelligently mana
 - **Environment Variable Support**: Flexible deployment options
 - **Force Modes**: Skip confirmations for automated workflows
 - **Exit Codes**: Proper exit codes for scripting and monitoring
+- **JSON Output**: Machine-readable output for all list/get/status commands
+- **Scriptable**: Easy integration with automation tools and workflows
+
+### ⚡ Performance & Caching
+- **Intelligent Caching**: Disk-based cache minimizes API calls
+- **Configurable TTLs**: Separate TTL settings per data type
+- **Cache Management**: Init, status, clear, and refresh operations
+- **Size Limits**: Automatic cleanup when cache exceeds size limits
+- **Cache Statistics**: Hit/miss tracking and performance metrics
+
+### 📝 Logging & Debugging
+- **Configurable Log Levels**: DEBUG, INFO, WARNING, ERROR
+- **Debug Mode**: `--debug` flag for comprehensive troubleshooting
+- **API Call Tracing**: Detailed logging of all API interactions
+- **Cache Operation Logging**: Visibility into cache hits and misses
+- **Rich Formatting**: Color-coded, timestamped log messages
 
 ## Contributing
 
