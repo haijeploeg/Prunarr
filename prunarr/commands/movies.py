@@ -869,9 +869,10 @@ def get_movie_details(
 
         # Try numeric ID first
         movie = None
+        movie_id_int = None
         try:
-            movie_id = int(identifier)
-            movie = next((m for m in movies if m.get("id") == movie_id), None)
+            movie_id_int = int(identifier)
+            movie = next((m for m in movies if m.get("id") == movie_id_int), None)
         except ValueError:
             # Search by title (case-insensitive partial match)
             identifier_lower = identifier.lower()
@@ -889,10 +890,15 @@ def get_movie_details(
                 raise typer.Exit(1)
 
             movie = matches[0]
+            movie_id_int = movie.get("id")
 
         if not movie:
             logger.error(f"No movie found with ID: {identifier}")
             raise typer.Exit(1)
+
+        # Get full movie details from Radarr for additional info
+        full_movie = prunarr.radarr.get_movie(movie_id_int)
+        movie_file = full_movie.get("movieFile", {})
 
         # Get all streaming providers (not filtered by config)
         from prunarr.services.streaming_checker import StreamingChecker
@@ -946,11 +952,21 @@ def get_movie_details(
             table = create_history_details_table(movie.get("id", 0))
             table.title = None
 
+            # Basic info
             table.add_row("Title", movie.get("title", "N/A"))
             table.add_row("Year", str(movie.get("year", "N/A")))
+
+            # IDs
             table.add_row("Radarr ID", str(movie.get("id", "N/A")))
             table.add_row("IMDB ID", movie.get("imdb_id", "N/A"))
-            table.add_row("TMDB ID", str(movie.get("tmdb_id", "N/A")))
+            if full_movie.get("tmdbId"):
+                table.add_row("TMDB ID", str(full_movie.get("tmdbId")))
+
+            # Status info
+            table.add_row("Status", full_movie.get("status", "N/A"))
+            table.add_row("Monitored", "Yes" if full_movie.get("monitored") else "No")
+
+            # User info
             table.add_row("User", movie.get("user") or "[dim]Untagged[/dim]")
             table.add_row(
                 "Watch Status", format_movie_watch_status(movie.get("watch_status", "unknown"))
@@ -963,10 +979,51 @@ def get_movie_details(
                 if days_ago is not None:
                     table.add_row("Days Since Watched", str(days_ago))
 
+            # File info
             table.add_row("File Size", format_file_size(movie.get("file_size", 0)))
+            if movie_file.get("quality"):
+                quality_name = (
+                    movie_file.get("quality", {}).get("quality", {}).get("name", "Unknown")
+                )
+                table.add_row("Quality", quality_name)
+            if movie_file.get("mediaInfo"):
+                media_info = movie_file.get("mediaInfo", {})
+                if media_info.get("videoCodec"):
+                    table.add_row("Video Codec", media_info.get("videoCodec"))
+                if media_info.get("audioCodec"):
+                    table.add_row("Audio Codec", media_info.get("audioCodec"))
+                if media_info.get("resolution"):
+                    table.add_row("Resolution", media_info.get("resolution"))
+
+            # Dates
             table.add_row(
-                "Added to Radarr", format_date_or_default(parse_iso_datetime(movie.get("added")))
+                "Added to Radarr",
+                format_date_or_default(parse_iso_datetime(full_movie.get("added"))),
             )
+            if movie_file.get("dateAdded"):
+                table.add_row(
+                    "File Downloaded",
+                    format_date_or_default(parse_iso_datetime(movie_file.get("dateAdded"))),
+                )
+            if full_movie.get("inCinemas"):
+                table.add_row(
+                    "In Cinemas",
+                    format_date_or_default(parse_iso_datetime(full_movie.get("inCinemas"))),
+                )
+            if full_movie.get("digitalRelease"):
+                table.add_row(
+                    "Digital Release",
+                    format_date_or_default(parse_iso_datetime(full_movie.get("digitalRelease"))),
+                )
+            if full_movie.get("physicalRelease"):
+                table.add_row(
+                    "Physical Release",
+                    format_date_or_default(parse_iso_datetime(full_movie.get("physicalRelease"))),
+                )
+
+            # Path
+            if full_movie.get("path"):
+                table.add_row("Path", full_movie.get("path"))
 
             # Streaming information
             if all_providers:
