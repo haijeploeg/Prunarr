@@ -26,13 +26,13 @@ from prunarr.utils import (
     safe_get,
     safe_str,
 )
-from prunarr.utils.validators import validate_output_format
 from prunarr.utils.serializers import prepare_datetime_for_json, prepare_series_for_json
 from prunarr.utils.tables import (
-    create_series_table,
-    create_series_removal_table,
     create_episodes_table,
+    create_series_removal_table,
+    create_series_table,
 )
+from prunarr.utils.validators import validate_output_format
 
 console = Console()
 app = typer.Typer(help="Manage TV shows in Sonarr.", rich_markup_mode="rich")

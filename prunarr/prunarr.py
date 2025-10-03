@@ -20,14 +20,14 @@ import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from prunarr.cache import CacheConfig, CacheManager
 from prunarr.config import Settings
 from prunarr.logger import get_logger
 from prunarr.radarr import RadarrAPI
+from prunarr.services import MediaMatcher, UserService, WatchCalculator
 from prunarr.sonarr import SonarrAPI
 from prunarr.tautulli import TautulliAPI
 from prunarr.utils import make_episode_key
-from prunarr.services import MediaMatcher, UserService, WatchCalculator
-from prunarr.cache import CacheManager, CacheConfig
 
 
 class PrunArr:

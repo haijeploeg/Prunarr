@@ -22,9 +22,9 @@ from prunarr.utils import (
     safe_get,
 )
 from prunarr.utils.parsers import parse_file_size, parse_iso_datetime
-from prunarr.utils.validators import validate_output_format, validate_sort_option
 from prunarr.utils.serializers import prepare_datetime_for_json, prepare_movie_for_json
 from prunarr.utils.tables import create_movies_table
+from prunarr.utils.validators import validate_output_format, validate_sort_option
 
 console = Console()
 app = typer.Typer(help="Manage movies in Radarr.", rich_markup_mode="rich")

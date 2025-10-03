@@ -12,21 +12,21 @@ from typing import Optional
 
 import typer
 from rich.console import Console
-from rich.table import Table
 from rich.progress import (
+    BarColumn,
     Progress,
     SpinnerColumn,
-    TextColumn,
-    BarColumn,
     TaskProgressColumn,
+    TextColumn,
     TimeElapsedColumn,
 )
+from rich.table import Table
 
 from prunarr.config import Settings
 from prunarr.logger import get_logger
 from prunarr.prunarr import PrunArr
-from prunarr.utils.validators import validate_output_format
 from prunarr.utils.serializers import prepare_datetime_for_json
+from prunarr.utils.validators import validate_output_format
 
 app = typer.Typer(help="Manage PrunArr cache.", rich_markup_mode="rich")
 console = Console()

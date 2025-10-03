@@ -752,8 +752,9 @@ class TestCriticalErrorHandling:
     @patch("requests.get")
     def test_tautulli_connection_error(self, mock_get):
         """CRITICAL: Test handling of connection errors."""
-        from prunarr.tautulli import TautulliAPI
         import requests
+
+        from prunarr.tautulli import TautulliAPI
 
         mock_get.side_effect = requests.exceptions.ConnectionError("Cannot connect")
 
