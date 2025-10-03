@@ -170,21 +170,23 @@ Enable streaming provider checks in your `config.yaml`:
 streaming_enabled: true
 streaming_locale: "en_US"  # Your region (language_COUNTRY)
 streaming_providers:
-  - "nfx"                  # Netflix
-  - "amp"                  # Amazon Prime Video
-  - "dnp"                  # Disney+
-  - "hlu"                  # Hulu
+  - "netflix"              # Netflix
+  - "amazonprimevideo"     # Amazon Prime Video
+  - "disneyplus"           # Disney+
+  - "hulu"                 # Hulu
 ```
 
 **Common Provider Technical Names:**
-- `nfx` - Netflix
-- `amp` - Amazon Prime Video
-- `dnp` - Disney+
-- `hlu` - Hulu
-- `hbm` - HBO Max
-- `apl` - Apple TV+
-- `pcv` - Paramount+
-- `shw` - Showtime
+- `netflix` - Netflix
+- `amazonprimevideo` - Amazon Prime Video
+- `disneyplus` - Disney+
+- `hulu` - Hulu
+- `hbomax` - HBO Max
+- `appletv` - Apple TV+
+- `paramountplus` - Paramount+
+- `showtime` - Showtime
+
+**Note:** Use `prunarr providers list` to see all available provider technical names for your locale.
 
 ### Filtering Options
 

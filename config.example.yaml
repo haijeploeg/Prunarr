@@ -60,12 +60,12 @@ streaming_providers:                  # List of streaming provider technical nam
 # Cache TTL for streaming data
 cache_ttl_streaming: 86400            # Streaming availability cache (default: 24 hours)
 
-# Common Provider Technical Names:
-# - nfx: Netflix              - hbm: HBO Max
-# - amp: Amazon Prime Video   - apl: Apple TV+
-# - dnp: Disney+              - pcv: Paramount+
-# - hlu: Hulu                 - shw: Showtime
-# - stz: Starz                - crv: Crunchyroll
+# Common Provider Technical Names (use `prunarr providers list` to see all):
+# - netflix: Netflix                    - hbomax: HBO Max
+# - amazonprimevideo: Amazon Prime      - appletv: Apple TV+
+# - disneyplus: Disney+                 - paramountplus: Paramount+
+# - hulu: Hulu                          - showtime: Showtime
+# - starz: Starz                        - crunchyroll: Crunchyroll
 
 # Note: PrunArr uses command-line parameters for operational settings
 # The --days-watched parameter controls retention periods

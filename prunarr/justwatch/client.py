@@ -244,18 +244,29 @@ class JustWatchClient:
         offers = []
         all_offers = node.get("offers", [])
 
+        if self.logger:
+            self.logger.debug(f"Found {len(all_offers)} total offers for {justwatch_id}")
+
         for offer_data in all_offers:
             package = offer_data.get("package", {})
             technical_name = package.get("technicalName", "")
+            monetization_type = offer_data.get("monetizationType", "")
+
+            if self.logger and len(all_offers) < 20:  # Only log details for small lists
+                self.logger.debug(f"  Offer: {technical_name} ({monetization_type})")
 
             # Filter by providers if specified
             if providers and technical_name not in providers:
                 continue
 
+            # Only include FLATRATE (subscription) offers
+            if monetization_type != "FLATRATE":
+                continue
+
             offer = Offer(
                 provider_id=package.get("packageId", 0),
                 provider_short_name=package.get("shortName", ""),
-                monetization_type=offer_data.get("monetizationType", ""),
+                monetization_type=monetization_type,
                 presentation_type=offer_data.get("presentationType", "SD"),
             )
             offers.append(offer)
