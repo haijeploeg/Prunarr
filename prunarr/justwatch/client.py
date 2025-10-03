@@ -167,7 +167,11 @@ class JustWatchClient:
         }
 
         if release_year:
-            variables["searchTitlesFilter"]["releaseYear"] = release_year
+            # JustWatch expects an IntFilter object, not just an integer
+            variables["searchTitlesFilter"]["releaseYear"] = {
+                "min": release_year,
+                "max": release_year,
+            }
 
         data = self._make_request(SEARCH_QUERY, variables)
 
