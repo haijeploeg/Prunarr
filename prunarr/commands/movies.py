@@ -926,7 +926,11 @@ def get_movie_details(
 
                     # Get provider details for full names
                     all_jw_providers = streaming_client.get_providers()
-                    provider_name_map = {p.technical_name: p.clear_name for p in all_jw_providers}
+                    # Map both technical_name and short_name to clear_name for flexibility
+                    provider_name_map = {}
+                    for p in all_jw_providers:
+                        provider_name_map[p.technical_name] = p.clear_name
+                        provider_name_map[p.short_name] = p.clear_name
 
                     # Group by provider
                     providers_dict = {}
