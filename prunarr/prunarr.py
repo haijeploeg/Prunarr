@@ -83,6 +83,7 @@ class PrunArr:
             ttl_history=settings.cache_ttl_history,
             ttl_tags=settings.cache_ttl_tags,
             ttl_metadata=settings.cache_ttl_metadata,
+            ttl_streaming=settings.cache_ttl_streaming,
             max_size_mb=settings.cache_max_size_mb,
         )
         self.cache_manager = (
@@ -255,7 +256,10 @@ class PrunArr:
         return self.watch_calculator.determine_movie_watch_status(movie_user, all_watchers)
 
     def get_movies_with_watch_status(
-        self, include_untagged: bool = True, username_filter: Optional[str] = None
+        self,
+        include_untagged: bool = True,
+        username_filter: Optional[str] = None,
+        check_streaming: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Get all movies with their watch status from Tautulli.
@@ -263,12 +267,13 @@ class PrunArr:
         Args:
             include_untagged: Include movies without user tags
             username_filter: Filter by specific username
+            check_streaming: Whether to check and cache streaming availability
 
         Returns:
             List of movies with watch status, last watched date, and days since watched
         """
         self.logger.debug(
-            f"get_movies_with_watch_status: include_untagged={include_untagged}, username_filter={username_filter}"
+            f"get_movies_with_watch_status: include_untagged={include_untagged}, username_filter={username_filter}, check_streaming={check_streaming}"
         )
 
         all_movies = self.get_all_radarr_movies(include_untagged=include_untagged)
@@ -308,16 +313,30 @@ class PrunArr:
                 movie.get("user"), all_watchers
             )
 
-            movies_with_status.append(
-                {
-                    **movie,
-                    "watch_status": watch_status,
-                    "watched_by": watched_by_display,
-                    "watched_at": watched_date,
-                    "days_since_watched": days_since_watched,
-                    "all_watchers": all_watchers,
-                }
-            )
+            # Check streaming availability from cache if enabled
+            streaming_available = None
+            if check_streaming and self.cache_manager and imdb_id:
+                cache_key = f"streaming_movie_{imdb_id}"
+                streaming_available = self.cache_manager.get(cache_key)
+                if streaming_available is not None:
+                    self.logger.debug(
+                        f"Found cached streaming status for {movie.get('title')}: {streaming_available}"
+                    )
+
+            movie_data = {
+                **movie,
+                "watch_status": watch_status,
+                "watched_by": watched_by_display,
+                "watched_at": watched_date,
+                "days_since_watched": days_since_watched,
+                "all_watchers": all_watchers,
+            }
+
+            # Only add streaming_available if we checked
+            if streaming_available is not None:
+                movie_data["streaming_available"] = streaming_available
+
+            movies_with_status.append(movie_data)
 
         return movies_with_status
 
@@ -615,6 +634,7 @@ class PrunArr:
         username_filter: Optional[str] = None,
         series_filter: Optional[str] = None,
         season_filter: Optional[int] = None,
+        check_streaming: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Get all series with their watch status from Tautulli.
@@ -624,12 +644,13 @@ class PrunArr:
             username_filter: Filter by specific username
             series_filter: Filter by series title (partial match)
             season_filter: Filter by specific season number
+            check_streaming: Whether to check and cache streaming availability
 
         Returns:
             List of series with watch status, episode details, and watch progress
         """
         self.logger.debug(
-            f"get_series_with_watch_status: include_untagged={include_untagged}, username_filter={username_filter}, series_filter={series_filter}, season_filter={season_filter}"
+            f"get_series_with_watch_status: include_untagged={include_untagged}, username_filter={username_filter}, series_filter={series_filter}, season_filter={season_filter}, check_streaming={check_streaming}"
         )
 
         # Get and filter series
@@ -706,28 +727,45 @@ class PrunArr:
                 for season in series.get("seasons", [])
             )
 
-            series_with_status.append(
-                {
-                    **series,
-                    "watch_status": watch_status,
-                    "watched_episodes": total_watched_episodes,
-                    "total_episodes": actual_total_episodes,
-                    "completion_percentage": (
-                        (total_watched_episodes / actual_total_episodes * 100)
-                        if actual_total_episodes > 0
-                        else 0
-                    ),
-                    "most_recent_watch": most_recent_watch,
-                    "days_since_watched": days_since_watched,
-                    "available_seasons": available_seasons_str,
-                    "total_size_on_disk": total_size_on_disk,
-                }
-            )
+            # Check streaming availability from cache if enabled
+            streaming_available = None
+            if check_streaming and self.cache_manager and tvdb_id:
+                cache_key = f"streaming_series_{tvdb_id}"
+                streaming_available = self.cache_manager.get(cache_key)
+                if streaming_available is not None:
+                    self.logger.debug(
+                        f"Found cached streaming status for {series.get('title')}: {streaming_available}"
+                    )
+
+            series_data = {
+                **series,
+                "watch_status": watch_status,
+                "watched_episodes": total_watched_episodes,
+                "total_episodes": actual_total_episodes,
+                "completion_percentage": (
+                    (total_watched_episodes / actual_total_episodes * 100)
+                    if actual_total_episodes > 0
+                    else 0
+                ),
+                "most_recent_watch": most_recent_watch,
+                "days_since_watched": days_since_watched,
+                "available_seasons": available_seasons_str,
+                "total_size_on_disk": total_size_on_disk,
+            }
+
+            # Only add streaming_available if we checked
+            if streaming_available is not None:
+                series_data["streaming_available"] = streaming_available
+
+            series_with_status.append(series_data)
 
         return series_with_status
 
     def get_series_ready_for_removal(
-        self, days_watched: int, removal_mode: str = "series"  # "series" or "season"
+        self,
+        days_watched: int,
+        removal_mode: str = "series",
+        check_streaming: bool = False,  # "series" or "season"
     ) -> List[Dict[str, Any]]:
         """
         Get series that are ready for removal based on watch criteria.
@@ -735,11 +773,14 @@ class PrunArr:
         Args:
             days_watched: Minimum number of days since series was watched
             removal_mode: "series" removes entire series, "season" removes individual seasons
+            check_streaming: Whether to check and cache streaming availability
 
         Returns:
             List of series or seasons ready for removal
         """
-        series_with_status = self.get_series_with_watch_status(include_untagged=False)
+        series_with_status = self.get_series_with_watch_status(
+            include_untagged=False, check_streaming=check_streaming
+        )
         items_to_remove = []
 
         for series in series_with_status:

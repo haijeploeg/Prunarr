@@ -135,12 +135,16 @@ def list_series(
     prunarr = PrunArr(settings, debug=debug)
 
     try:
-        # Get series with watch status and apply filters
+        # Check if we need streaming data
+        need_streaming = on_streaming or not_on_streaming
+
+        # Get series with watch status and apply filters (and populate streaming cache if needed)
         series_list = prunarr.get_series_with_watch_status(
             include_untagged=include_untagged,
             username_filter=username,
             series_filter=series_name,
             season_filter=season,
+            check_streaming=need_streaming,
         )
 
         # Check and log cache status
@@ -165,11 +169,11 @@ def list_series(
 
             filtered_series.append(series)
 
-        # Apply streaming filters if requested
+        # Apply streaming filters if requested - now using cached data!
         if on_streaming or not_on_streaming:
             from prunarr.services.streaming_checker import StreamingChecker
 
-            logger.info("Checking streaming availability...")
+            logger.info("Filtering by streaming availability (using cached data)...")
             streaming_checker = StreamingChecker(
                 locale=settings.streaming_locale,
                 providers=settings.streaming_providers,
@@ -179,11 +183,16 @@ def list_series(
 
             streaming_filtered = []
             for series in filtered_series:
-                is_available = streaming_checker.is_on_streaming(
-                    media_type="series",
-                    title=series.get("title", ""),
-                    tvdb_id=series.get("tvdb_id"),
-                )
+                # Try to use cached streaming_available field first
+                is_available = series.get("streaming_available")
+
+                # If not in cache, check via API (and cache the result)
+                if is_available is None:
+                    is_available = streaming_checker.is_on_streaming(
+                        media_type="series",
+                        title=series.get("title", ""),
+                        tvdb_id=series.get("tvdb_id"),
+                    )
 
                 # Apply the appropriate filter
                 if on_streaming and is_available:
@@ -350,9 +359,12 @@ def remove_series(
     prunarr = PrunArr(settings, debug=debug)
 
     try:
-        # Get series ready for removal
+        # Check if we need streaming data
+        need_streaming = on_streaming or not_on_streaming
+
+        # Get series ready for removal (and populate streaming cache if needed)
         items_to_remove = prunarr.get_series_ready_for_removal(
-            days_watched=days_watched, removal_mode=removal_mode
+            days_watched=days_watched, removal_mode=removal_mode, check_streaming=need_streaming
         )
 
         # Apply additional filters
@@ -371,11 +383,11 @@ def remove_series(
                 item for item in items_to_remove if item.get("season_number") == season
             ]
 
-        # Apply streaming filters if requested
+        # Apply streaming filters if requested - now using cached data!
         if on_streaming or not_on_streaming:
             from prunarr.services.streaming_checker import StreamingChecker
 
-            logger.info("Checking streaming availability...")
+            logger.info("Filtering by streaming availability (using cached data)...")
             streaming_checker = StreamingChecker(
                 locale=settings.streaming_locale,
                 providers=settings.streaming_providers,
@@ -385,11 +397,16 @@ def remove_series(
 
             streaming_filtered = []
             for item in items_to_remove:
-                is_available = streaming_checker.is_on_streaming(
-                    media_type="series",
-                    title=item.get("title", ""),
-                    tvdb_id=item.get("tvdb_id"),
-                )
+                # Try to use cached streaming_available field first
+                is_available = item.get("streaming_available")
+
+                # If not in cache, check via API (and cache the result)
+                if is_available is None:
+                    is_available = streaming_checker.is_on_streaming(
+                        media_type="series",
+                        title=item.get("title", ""),
+                        tvdb_id=item.get("tvdb_id"),
+                    )
 
                 # Apply the appropriate filter
                 if on_streaming and is_available:

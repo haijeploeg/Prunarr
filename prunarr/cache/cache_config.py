@@ -23,6 +23,7 @@ class CacheConfig:
         ttl_history: TTL for Tautulli watch history (seconds)
         ttl_tags: TTL for Radarr/Sonarr tags (seconds)
         ttl_metadata: TTL for IMDB/TVDB metadata (seconds)
+        ttl_streaming: TTL for JustWatch streaming data (seconds)
         max_size_mb: Maximum cache size in megabytes (0 = unlimited)
     """
 
@@ -33,6 +34,7 @@ class CacheConfig:
     ttl_history: int = 300  # 5 minutes
     ttl_tags: int = 86400  # 24 hours
     ttl_metadata: int = 604800  # 7 days
+    ttl_streaming: int = 86400  # 24 hours
     max_size_mb: int = 100  # 100 MB max cache size
 
     def __post_init__(self):
@@ -65,5 +67,6 @@ class CacheConfig:
             ttl_history=settings.get("cache_ttl_history", 300),
             ttl_tags=settings.get("cache_ttl_tags", 86400),
             ttl_metadata=settings.get("cache_ttl_metadata", 604800),
+            ttl_streaming=settings.get("cache_ttl_streaming", 86400),
             max_size_mb=settings.get("cache_max_size_mb", 100),
         )

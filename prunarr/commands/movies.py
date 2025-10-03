@@ -373,9 +373,14 @@ def list_movies(
     prunarr = PrunArr(settings, debug=debug)
 
     try:
-        # Get movies with watch status
+        # Check if we need streaming data
+        need_streaming = on_streaming or not_on_streaming
+
+        # Get movies with watch status (and populate streaming cache if needed)
         movies = prunarr.get_movies_with_watch_status(
-            include_untagged=include_untagged, username_filter=username
+            include_untagged=include_untagged,
+            username_filter=username,
+            check_streaming=need_streaming,
         )
 
         # Check and log cache status
@@ -394,11 +399,11 @@ def list_movies(
             remove_mode=False,
         )
 
-        # Apply streaming filters if requested
+        # Apply streaming filters if requested - now using cached data!
         if on_streaming or not_on_streaming:
             from prunarr.services.streaming_checker import StreamingChecker
 
-            logger.info("Checking streaming availability...")
+            logger.info("Filtering by streaming availability (using cached data)...")
             streaming_checker = StreamingChecker(
                 locale=settings.streaming_locale,
                 providers=settings.streaming_providers,
@@ -408,12 +413,17 @@ def list_movies(
 
             streaming_filtered = []
             for movie in filtered_movies:
-                is_available = streaming_checker.is_on_streaming(
-                    media_type="movie",
-                    title=movie.get("title", ""),
-                    year=movie.get("year"),
-                    imdb_id=movie.get("imdb_id"),
-                )
+                # Try to use cached streaming_available field first
+                is_available = movie.get("streaming_available")
+
+                # If not in cache, check via API (and cache the result)
+                if is_available is None:
+                    is_available = streaming_checker.is_on_streaming(
+                        media_type="movie",
+                        title=movie.get("title", ""),
+                        year=movie.get("year"),
+                        imdb_id=movie.get("imdb_id"),
+                    )
 
                 # Apply the appropriate filter
                 if on_streaming and is_available:
@@ -645,9 +655,14 @@ def remove_movies(
     prunarr = PrunArr(settings, debug=debug)
 
     try:
-        # Get all movies with watch status first
+        # Check if we need streaming data
+        need_streaming = on_streaming or not_on_streaming
+
+        # Get all movies with watch status first (and populate streaming cache if needed)
         all_movies = prunarr.get_movies_with_watch_status(
-            include_untagged=include_untagged, username_filter=username
+            include_untagged=include_untagged,
+            username_filter=username,
+            check_streaming=need_streaming,
         )
 
         # Apply filtering using shared function (remove mode)
@@ -659,11 +674,11 @@ def remove_movies(
             remove_mode=True,
         )
 
-        # Apply streaming filters if requested
+        # Apply streaming filters if requested - now using cached data!
         if on_streaming or not_on_streaming:
             from prunarr.services.streaming_checker import StreamingChecker
 
-            logger.info("Checking streaming availability...")
+            logger.info("Filtering by streaming availability (using cached data)...")
             streaming_checker = StreamingChecker(
                 locale=settings.streaming_locale,
                 providers=settings.streaming_providers,
@@ -673,12 +688,17 @@ def remove_movies(
 
             streaming_filtered = []
             for movie in movies_to_remove:
-                is_available = streaming_checker.is_on_streaming(
-                    media_type="movie",
-                    title=movie.get("title", ""),
-                    year=movie.get("year"),
-                    imdb_id=movie.get("imdb_id"),
-                )
+                # Try to use cached streaming_available field first
+                is_available = movie.get("streaming_available")
+
+                # If not in cache, check via API (and cache the result)
+                if is_available is None:
+                    is_available = streaming_checker.is_on_streaming(
+                        media_type="movie",
+                        title=movie.get("title", ""),
+                        year=movie.get("year"),
+                        imdb_id=movie.get("imdb_id"),
+                    )
 
                 # Apply the appropriate filter
                 if on_streaming and is_available:

@@ -60,6 +60,21 @@ class StreamingChecker:
         if self.logger:
             self.logger.debug(f"Checking movie availability: {title} ({year}), IMDB: {imdb_id}")
 
+        # Check simple boolean cache first
+        if self.cache_manager and imdb_id:
+            cache_key = f"streaming_movie_{imdb_id}"
+            cached_status = self.cache_manager.get(cache_key)
+            if cached_status is not None:
+                if self.logger:
+                    self.logger.debug(f"Using cached streaming status for {title}: {cached_status}")
+                # Return a simple result indicating cache hit
+                return AvailabilityResult(
+                    title=title,
+                    available=cached_status,
+                    providers=[],
+                    locale=self.locale,
+                )
+
         result = self.client.check_availability(
             title=title,
             providers=self.providers,
@@ -72,6 +87,13 @@ class StreamingChecker:
             status = "available" if result.available else "not available"
             providers_str = ", ".join(result.providers) if result.providers else "none"
             self.logger.debug(f"Movie {title}: {status} on providers: {providers_str}")
+
+        # Cache the simple boolean result for fast filtering
+        if self.cache_manager and imdb_id:
+            cache_key = f"streaming_movie_{imdb_id}"
+            self.cache_manager.set(cache_key, result.available)
+            if self.logger:
+                self.logger.debug(f"Cached streaming status for {title}: {result.available}")
 
         return result
 
@@ -91,6 +113,21 @@ class StreamingChecker:
         if self.logger:
             self.logger.debug(f"Checking series availability: {title}, TVDB: {tvdb_id}")
 
+        # Check simple boolean cache first
+        if self.cache_manager and tvdb_id:
+            cache_key = f"streaming_series_{tvdb_id}"
+            cached_status = self.cache_manager.get(cache_key)
+            if cached_status is not None:
+                if self.logger:
+                    self.logger.debug(f"Using cached streaming status for {title}: {cached_status}")
+                # Return a simple result indicating cache hit
+                return AvailabilityResult(
+                    title=title,
+                    available=cached_status,
+                    providers=[],
+                    locale=self.locale,
+                )
+
         # Convert TVDB ID to string for cache key if provided
         cache_id = f"tvdb{tvdb_id}" if tvdb_id else None
 
@@ -105,6 +142,13 @@ class StreamingChecker:
             status = "available" if result.available else "not available"
             providers_str = ", ".join(result.providers) if result.providers else "none"
             self.logger.debug(f"Series {title}: {status} on providers: {providers_str}")
+
+        # Cache the simple boolean result for fast filtering
+        if self.cache_manager and tvdb_id:
+            cache_key = f"streaming_series_{tvdb_id}"
+            self.cache_manager.set(cache_key, result.available)
+            if self.logger:
+                self.logger.debug(f"Cached streaming status for {title}: {result.available}")
 
         return result
 

@@ -327,3 +327,44 @@ class CacheManager:
 
         key = self._generate_key(key_prefix, *key_args)
         return self.store.get_cache_info(key)
+
+    def get(self, key: str) -> Optional[Any]:
+        """
+        Get data from cache by key.
+
+        Args:
+            key: Cache key
+
+        Returns:
+            Cached data or None if not found
+        """
+        if not self.is_enabled():
+            return None
+
+        cached = self.store.get(key)
+        if cached is not None:
+            self.logger.debug(f"Cache HIT: {key}")
+            self.last_was_cache_hit = True
+            return cached.get("data")
+
+        self.logger.debug(f"Cache MISS: {key}")
+        self.last_was_cache_hit = False
+        return None
+
+    def set(self, key: str, data: Any, ttl: Optional[int] = None) -> None:
+        """
+        Set data in cache with optional TTL.
+
+        Args:
+            key: Cache key
+            data: Data to cache
+            ttl: Time to live in seconds (defaults to streaming TTL)
+        """
+        if not self.is_enabled():
+            return
+
+        if ttl is None:
+            ttl = self.config.ttl_streaming
+
+        self.store.set(key, data, ttl)
+        self.logger.debug(f"Cached {key} (TTL: {ttl}s)")
