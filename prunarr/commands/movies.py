@@ -923,15 +923,22 @@ def get_movie_details(
                     offers = streaming_client.get_offers(
                         search_results[0].id, providers=None
                     )  # No filter
+
+                    # Get provider details for full names
+                    all_jw_providers = streaming_client.get_providers()
+                    provider_name_map = {p.technical_name: p.clear_name for p in all_jw_providers}
+
                     # Group by provider
                     providers_dict = {}
                     for offer in offers:
                         if offer.monetization_type == "FLATRATE":  # Only subscriptions
-                            provider = offer.provider_short_name
-                            if provider not in providers_dict:
-                                providers_dict[provider] = []
-                            providers_dict[provider].append(offer.monetization_type)
-                    all_providers = list(providers_dict.keys())
+                            provider_short = offer.provider_short_name
+                            if provider_short not in providers_dict:
+                                providers_dict[provider_short] = []
+                            providers_dict[provider_short].append(offer.monetization_type)
+
+                    # Map to full names
+                    all_providers = [provider_name_map.get(p, p) for p in providers_dict.keys()]
             except Exception as e:
                 logger.warning(f"Could not fetch streaming data: {e}")
 
