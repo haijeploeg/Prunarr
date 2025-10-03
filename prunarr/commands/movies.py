@@ -13,6 +13,7 @@ import typer
 from rich.console import Console
 
 from prunarr.config import Settings
+from prunarr.justwatch import JustWatchClient
 from prunarr.logger import get_logger
 from prunarr.prunarr import PrunArr
 from prunarr.utils import (
@@ -373,14 +374,14 @@ def list_movies(
     prunarr = PrunArr(settings, debug=debug)
 
     try:
-        # Check if we need streaming data
-        need_streaming = on_streaming or not_on_streaming
+        # Always check streaming if enabled in config
+        check_streaming = settings.streaming_enabled
 
         # Get movies with watch status (and populate streaming cache if needed)
         movies = prunarr.get_movies_with_watch_status(
             include_untagged=include_untagged,
             username_filter=username,
-            check_streaming=need_streaming,
+            check_streaming=check_streaming,
         )
 
         # Check and log cache status
@@ -473,8 +474,8 @@ def list_movies(
                 )
             print(json.dumps(json_output, indent=2))
         else:
-            # Create Rich table using factory
-            table = create_movies_table()
+            # Create Rich table using factory - always include streaming column
+            table = create_movies_table(include_streaming=True)
 
             # Populate table
             for movie in filtered_movies:
@@ -494,7 +495,8 @@ def list_movies(
                 # Format added date
                 added_date = format_date_or_default(parse_iso_datetime(movie.get("added")))
 
-                table.add_row(
+                # Build row data
+                row_data = [
                     safe_get(movie, "title"),
                     safe_get(movie, "year"),
                     user_display,
@@ -502,8 +504,20 @@ def list_movies(
                     watched_by,
                     days_ago,
                     format_file_size(movie.get("file_size", 0)),
-                    added_date,
-                )
+                ]
+
+                # Add streaming info - always show
+                streaming_available = movie.get("streaming_available")
+                if streaming_available is True:
+                    streaming_display = "✓"
+                elif streaming_available is False:
+                    streaming_display = "✗"
+                else:
+                    streaming_display = "-"  # Not checked yet
+                row_data.append(streaming_display)
+
+                row_data.append(added_date)
+                table.add_row(*row_data)
 
             console.print(table)
 
@@ -808,4 +822,160 @@ def remove_movies(
 
     except Exception as e:
         logger.error(f"Failed during movie removal process: {str(e)}")
+        raise typer.Exit(1)
+
+
+@app.command("get")
+def get_movie_details(
+    ctx: typer.Context,
+    identifier: str = typer.Argument(..., help="Movie title or Radarr ID"),
+    output: str = typer.Option("table", "--output", "-o", help="Output format: table or json"),
+):
+    """
+    [bold cyan]Get detailed information about a specific movie.[/bold cyan]
+
+    Shows comprehensive movie details including watch status, file information,
+    and complete streaming availability across all providers (not just configured ones).
+
+    [bold yellow]Lookup methods:[/bold yellow]
+        • By [cyan]title[/cyan] - Partial match (e.g., "Matrix", "Breaking")
+        • By [cyan]ID[/cyan] - Exact Radarr movie ID
+
+    [bold yellow]Examples:[/bold yellow]
+        [dim]# Get details by title[/dim]
+        prunarr movies get "The Matrix"
+
+        [dim]# Get details by Radarr ID[/dim]
+        prunarr movies get 123
+
+        [dim]# Get JSON output[/dim]
+        prunarr movies get "Inception" [green]--output[/green] json
+    """
+    context_obj = ctx.obj
+    settings: Settings = context_obj["settings"]
+    debug: bool = context_obj["debug"]
+
+    logger = get_logger("movies", debug=debug, log_level=settings.log_level)
+
+    # Validate output format
+    validate_output_format(output, logger)
+
+    logger.info(f"Looking up movie: {identifier}")
+    prunarr = PrunArr(settings, debug=debug)
+
+    try:
+        # Try to find the movie by ID or title
+        movies = prunarr.get_movies_with_watch_status(include_untagged=True, check_streaming=False)
+
+        # Try numeric ID first
+        movie = None
+        try:
+            movie_id = int(identifier)
+            movie = next((m for m in movies if m.get("id") == movie_id), None)
+        except ValueError:
+            # Search by title (case-insensitive partial match)
+            identifier_lower = identifier.lower()
+            matches = [m for m in movies if identifier_lower in m.get("title", "").lower()]
+
+            if not matches:
+                logger.error(f"No movie found matching: {identifier}")
+                raise typer.Exit(1)
+
+            if len(matches) > 1:
+                console.print(f"[yellow]⚠️  Multiple movies found matching '{identifier}':[/yellow]")
+                for i, m in enumerate(matches[:5], 1):
+                    console.print(f"  {i}. {m.get('title')} ({m.get('year')}) [ID: {m.get('id')}]")
+                console.print("\n[dim]Please be more specific or use the Radarr ID[/dim]")
+                raise typer.Exit(1)
+
+            movie = matches[0]
+
+        if not movie:
+            logger.error(f"No movie found with ID: {identifier}")
+            raise typer.Exit(1)
+
+        # Get all streaming providers (not filtered by config)
+        from prunarr.services.streaming_checker import StreamingChecker
+
+        all_providers = []
+        if settings.streaming_enabled:
+            logger.info("Checking streaming availability across all providers...")
+            # Create checker without provider filtering
+            streaming_client = JustWatchClient(
+                locale=settings.streaming_locale,
+                logger=logger,
+                cache_manager=prunarr.cache_manager,
+            )
+
+            # Search and get offers
+            try:
+                search_results = streaming_client.search_title(
+                    movie.get("title", ""), movie.get("year"), "MOVIE"
+                )
+
+                if search_results:
+                    offers = streaming_client.get_offers(
+                        search_results[0].id, providers=None
+                    )  # No filter
+                    # Group by provider
+                    providers_dict = {}
+                    for offer in offers:
+                        if offer.monetization_type == "FLATRATE":  # Only subscriptions
+                            provider = offer.provider_short_name
+                            if provider not in providers_dict:
+                                providers_dict[provider] = []
+                            providers_dict[provider].append(offer.monetization_type)
+                    all_providers = list(providers_dict.keys())
+            except Exception as e:
+                logger.warning(f"Could not fetch streaming data: {e}")
+
+        if output == "json":
+            # Prepare JSON output
+            json_output = prepare_movie_for_json(movie)
+            json_output["all_streaming_providers"] = all_providers
+            print(json.dumps(json_output, indent=2))
+        else:
+            # Display detailed information
+            console.print(
+                f"\n[bold cyan]Movie Details: {movie.get('title')} ({movie.get('year')})[/bold cyan]\n"
+            )
+
+            # Create details table
+            from prunarr.utils.tables import create_history_details_table
+
+            table = create_history_details_table(movie.get("id", 0))
+            table.title = None
+
+            table.add_row("Title", movie.get("title", "N/A"))
+            table.add_row("Year", str(movie.get("year", "N/A")))
+            table.add_row("Radarr ID", str(movie.get("id", "N/A")))
+            table.add_row("IMDB ID", movie.get("imdb_id", "N/A"))
+            table.add_row("TMDB ID", str(movie.get("tmdb_id", "N/A")))
+            table.add_row("User", movie.get("user") or "[dim]Untagged[/dim]")
+            table.add_row(
+                "Watch Status", format_movie_watch_status(movie.get("watch_status", "unknown"))
+            )
+            table.add_row("Watched By", movie.get("watched_by") or "N/A")
+
+            if movie.get("watched_at"):
+                table.add_row("Watched Date", format_date_or_default(movie.get("watched_at")))
+                days_ago = movie.get("days_since_watched")
+                if days_ago is not None:
+                    table.add_row("Days Since Watched", str(days_ago))
+
+            table.add_row("File Size", format_file_size(movie.get("file_size", 0)))
+            table.add_row(
+                "Added to Radarr", format_date_or_default(parse_iso_datetime(movie.get("added")))
+            )
+
+            # Streaming information
+            if all_providers:
+                table.add_row("Streaming On", ", ".join(sorted(all_providers)))
+            elif settings.streaming_enabled:
+                table.add_row("Streaming On", "[dim]Not available on subscription services[/dim]")
+
+            console.print(table)
+
+    except Exception as e:
+        logger.error(f"Failed to get movie details: {str(e)}")
         raise typer.Exit(1)

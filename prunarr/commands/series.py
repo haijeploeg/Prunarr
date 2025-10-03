@@ -135,8 +135,8 @@ def list_series(
     prunarr = PrunArr(settings, debug=debug)
 
     try:
-        # Check if we need streaming data
-        need_streaming = on_streaming or not_on_streaming
+        # Always check streaming if enabled in config
+        check_streaming = settings.streaming_enabled
 
         # Get series with watch status and apply filters (and populate streaming cache if needed)
         series_list = prunarr.get_series_with_watch_status(
@@ -144,7 +144,7 @@ def list_series(
             username_filter=username,
             series_filter=series_name,
             season_filter=season,
-            check_streaming=need_streaming,
+            check_streaming=check_streaming,
         )
 
         # Check and log cache status
@@ -220,8 +220,8 @@ def list_series(
             json_output = [prepare_series_for_json(series) for series in filtered_series]
             print(json.dumps(json_output, indent=2))
         else:
-            # Create Rich table using factory
-            table = create_series_table()
+            # Create Rich table using factory - always include streaming column
+            table = create_series_table(include_streaming=True)
 
             # Populate table with series data
             for series in filtered_series:
@@ -233,7 +233,8 @@ def list_series(
                     series.get("most_recent_watch"), default="Never"
                 )
 
-                table.add_row(
+                # Build row data
+                row_data = [
                     safe_get(series, "id"),
                     safe_get(series, "title"),
                     safe_str(series.get("user"), default="Untagged"),
@@ -244,8 +245,20 @@ def list_series(
                     format_completion_percentage(series.get("completion_percentage", 0)),
                     available_seasons if available_seasons else "-",
                     format_file_size(series.get("total_size_on_disk", 0)),
-                    last_watched_str,
-                )
+                ]
+
+                # Add streaming info - always show
+                streaming_available = series.get("streaming_available")
+                if streaming_available is True:
+                    streaming_display = "✓"
+                elif streaming_available is False:
+                    streaming_display = "✗"
+                else:
+                    streaming_display = "-"  # Not checked yet
+                row_data.append(streaming_display)
+
+                row_data.append(last_watched_str)
+                table.add_row(*row_data)
 
             console.print(table)
 

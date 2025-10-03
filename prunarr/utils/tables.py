@@ -8,12 +8,13 @@ table structures across all command modules.
 from rich.table import Table
 
 
-def create_movies_table(title: str = "Radarr Movies") -> Table:
+def create_movies_table(title: str = "Radarr Movies", include_streaming: bool = False) -> Table:
     """
     Create standard movies table with consistent columns.
 
     Args:
         title: Table title (default: "Radarr Movies")
+        include_streaming: Whether to include streaming providers column
 
     Returns:
         Configured Rich Table for movies display
@@ -26,16 +27,19 @@ def create_movies_table(title: str = "Radarr Movies") -> Table:
     table.add_column("Watched By", style="cyan")
     table.add_column("Days Ago", style="green")
     table.add_column("File Size", style="magenta")
+    if include_streaming:
+        table.add_column("Streaming", style="bright_magenta")
     table.add_column("Added", style="dim")
     return table
 
 
-def create_series_table(title: str = "Sonarr TV Series") -> Table:
+def create_series_table(title: str = "Sonarr TV Series", include_streaming: bool = False) -> Table:
     """
     Create standard series table with consistent columns.
 
     Args:
         title: Table title (default: "Sonarr TV Series")
+        include_streaming: Whether to include streaming providers column
 
     Returns:
         Configured Rich Table for series display
@@ -49,6 +53,8 @@ def create_series_table(title: str = "Sonarr TV Series") -> Table:
     table.add_column("Progress", style="green")
     table.add_column("Seasons", style="magenta")
     table.add_column("Size", style="cyan")
+    if include_streaming:
+        table.add_column("Streaming", style="bright_magenta")
     table.add_column("Last Watched", style="dim")
     return table
 
