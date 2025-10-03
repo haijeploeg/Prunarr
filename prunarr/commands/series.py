@@ -55,6 +55,12 @@ def list_series(
         True, "--include-untagged", help="Include series without user tags"
     ),
     limit: Optional[int] = typer.Option(None, "--limit", "-l", help="Limit number of results"),
+    on_streaming: bool = typer.Option(
+        False, "--on-streaming", help="Show ONLY series available on configured streaming providers"
+    ),
+    not_on_streaming: bool = typer.Option(
+        False, "--not-on-streaming", help="Show ONLY series NOT available on streaming providers"
+    ),
     output: str = typer.Option("table", "--output", "-o", help="Output format: table or json"),
 ):
     """
@@ -93,6 +99,12 @@ def list_series(
         [dim]# Show partially watched series with debug info[/dim]
         prunarr[blue]--debug[/blue] series list [green]--partially-watched[/green]
 
+        [dim]# Show series available on configured streaming providers[/dim]
+        prunarr series list [green]--on-streaming[/green]
+
+        [dim]# Show series NOT available on streaming (unique content)[/dim]
+        prunarr series list [green]--not-on-streaming[/green]
+
         [dim]# Latest 10 series without user tags[/dim]
         prunarr series list [green]--limit[/green] 10 [green]--include-untagged[/green]
     """
@@ -105,6 +117,19 @@ def list_series(
 
     # Validate output format using shared validator
     validate_output_format(output, logger)
+
+    # Validate streaming filter mutual exclusivity
+    if on_streaming and not_on_streaming:
+        logger.error("Cannot use both --on-streaming and --not-on-streaming filters together")
+        raise typer.Exit(1)
+
+    # Check if streaming filters are requested but not configured
+    if (on_streaming or not_on_streaming) and not settings.streaming_enabled:
+        logger.error(
+            "Streaming filters require streaming_enabled=true in configuration. "
+            "Please configure streaming_enabled, streaming_locale, and streaming_providers in your config."
+        )
+        raise typer.Exit(1)
 
     logger.info("Retrieving Sonarr series...")
     prunarr = PrunArr(settings, debug=debug)
@@ -139,6 +164,36 @@ def list_series(
                 continue
 
             filtered_series.append(series)
+
+        # Apply streaming filters if requested
+        if on_streaming or not_on_streaming:
+            from prunarr.services.streaming_checker import StreamingChecker
+
+            logger.info("Checking streaming availability...")
+            streaming_checker = StreamingChecker(
+                locale=settings.streaming_locale,
+                providers=settings.streaming_providers,
+                cache_manager=prunarr.cache_manager,
+                logger=logger,
+            )
+
+            streaming_filtered = []
+            for series in filtered_series:
+                is_available = streaming_checker.is_on_streaming(
+                    media_type="series",
+                    title=series.get("title", ""),
+                    tvdb_id=series.get("tvdb_id"),
+                )
+
+                # Apply the appropriate filter
+                if on_streaming and is_available:
+                    streaming_filtered.append(series)
+                elif not_on_streaming and not is_available:
+                    streaming_filtered.append(series)
+
+            filtered_series = streaming_filtered
+            filter_type = "on streaming" if on_streaming else "not on streaming"
+            logger.info(f"After streaming filter: {len(filtered_series)} series {filter_type}")
 
         # Apply limit
         if limit:
@@ -216,6 +271,14 @@ def remove_series(
         False, "--dry-run", help="Show what would be removed without actually removing"
     ),
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompts"),
+    on_streaming: bool = typer.Option(
+        False,
+        "--on-streaming",
+        help="Remove ONLY series available on configured streaming providers",
+    ),
+    not_on_streaming: bool = typer.Option(
+        False, "--not-on-streaming", help="Remove ONLY series NOT available on streaming providers"
+    ),
 ):
     """
     [bold cyan]Remove watched TV series with advanced filtering and confirmation.[/bold cyan]
@@ -249,6 +312,12 @@ def remove_series(
         [dim]# Remove specific series seasons[/dim]
         prunarr series remove [green]--series[/green] \"the office\" [green]--mode[/green] season
 
+        [dim]# Remove watched series available on streaming (you can stream them)[/dim]
+        prunarr series remove [green]--on-streaming[/green] [green]--days-watched[/green] 30
+
+        [dim]# Remove watched series NOT on streaming (keep unique content longer)[/dim]
+        prunarr series remove [green]--not-on-streaming[/green] [green]--days-watched[/green] 180
+
     [bold yellow]Note:[/bold yellow]
         This operation permanently deletes files from your system. Use [green]--dry-run[/green] first to preview changes.
     """
@@ -263,6 +332,19 @@ def remove_series(
     debug: bool = context_obj["debug"]
 
     logger = get_logger("series", debug=debug, log_level=settings.log_level)
+
+    # Validate streaming filter mutual exclusivity
+    if on_streaming and not_on_streaming:
+        logger.error("Cannot use both --on-streaming and --not-on-streaming filters together")
+        raise typer.Exit(1)
+
+    # Check if streaming filters are requested but not configured
+    if (on_streaming or not_on_streaming) and not settings.streaming_enabled:
+        logger.error(
+            "Streaming filters require streaming_enabled=true in configuration. "
+            "Please configure streaming_enabled, streaming_locale, and streaming_providers in your config."
+        )
+        raise typer.Exit(1)
 
     logger.info(f"Finding series ready for removal (mode: {removal_mode}, days: {days_watched})...")
     prunarr = PrunArr(settings, debug=debug)
@@ -288,6 +370,36 @@ def remove_series(
             items_to_remove = [
                 item for item in items_to_remove if item.get("season_number") == season
             ]
+
+        # Apply streaming filters if requested
+        if on_streaming or not_on_streaming:
+            from prunarr.services.streaming_checker import StreamingChecker
+
+            logger.info("Checking streaming availability...")
+            streaming_checker = StreamingChecker(
+                locale=settings.streaming_locale,
+                providers=settings.streaming_providers,
+                cache_manager=prunarr.cache_manager,
+                logger=logger,
+            )
+
+            streaming_filtered = []
+            for item in items_to_remove:
+                is_available = streaming_checker.is_on_streaming(
+                    media_type="series",
+                    title=item.get("title", ""),
+                    tvdb_id=item.get("tvdb_id"),
+                )
+
+                # Apply the appropriate filter
+                if on_streaming and is_available:
+                    streaming_filtered.append(item)
+                elif not_on_streaming and not is_available:
+                    streaming_filtered.append(item)
+
+            items_to_remove = streaming_filtered
+            filter_type = "on streaming" if on_streaming else "not on streaming"
+            logger.info(f"After streaming filter: {len(items_to_remove)} items {filter_type}")
 
         if not items_to_remove:
             logger.info("No series found that meet the removal criteria")
