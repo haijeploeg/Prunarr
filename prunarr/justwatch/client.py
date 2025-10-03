@@ -102,6 +102,8 @@ class JustWatchClient:
 
             if "errors" in data:
                 error_msg = data["errors"][0].get("message", "Unknown GraphQL error")
+                if self.logger:
+                    self.logger.error(f"GraphQL errors: {data['errors']}")
                 raise JustWatchGraphQLError(f"GraphQL error: {error_msg}")
 
             if self.logger:
@@ -112,7 +114,16 @@ class JustWatchClient:
         except requests.exceptions.Timeout:
             raise JustWatchAPIError("JustWatch API request timed out")
         except requests.exceptions.RequestException as e:
-            raise JustWatchAPIError(f"JustWatch API request failed: {str(e)}")
+            error_detail = str(e)
+            # Try to get response body for debugging 422 errors
+            if hasattr(e, "response") and e.response is not None:
+                try:
+                    error_body = e.response.text
+                    if self.logger and e.response.status_code == 422:
+                        self.logger.error(f"422 Response body: {error_body}")
+                except:
+                    pass
+            raise JustWatchAPIError(f"JustWatch API request failed: {error_detail}")
         except json.JSONDecodeError:
             raise JustWatchAPIError("Failed to decode JustWatch API response")
 
