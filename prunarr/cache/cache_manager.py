@@ -262,9 +262,13 @@ class CacheManager:
         )
 
     def clear_all(self):
-        """Clear all cached data."""
+        """Clear all cached data and reset stats."""
         if self.is_enabled():
             self.store.clear()
+            # Reset hit/miss stats when clearing all
+            self.store.stats["hits"] = 0
+            self.store.stats["misses"] = 0
+            self.store._save_stats()
 
     def clear_movies(self):
         """Clear Radarr movie cache."""
@@ -294,6 +298,18 @@ class CacheManager:
         if self.is_enabled():
             self.store.clear(self.KEY_METADATA_IMDB)
             self.store.clear(self.KEY_METADATA_TVDB)
+
+    def clear_episodes(self):
+        """Clear episode caches (already included in clear_series)."""
+        if self.is_enabled():
+            self.store.clear(self.KEY_SONARR_EPISODES)
+
+    def clear_streaming(self):
+        """Clear streaming availability caches."""
+        if self.is_enabled():
+            self.store.clear("streaming_movie")
+            self.store.clear("streaming_series")
+            self.store.clear("justwatch_availability")
 
     def get_stats(self) -> Dict[str, Any]:
         """
