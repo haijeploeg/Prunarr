@@ -8,8 +8,6 @@ log levels, debug mode, and Rich console integration.
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-import pytest
-
 from prunarr.logger import PrunArrLogger, get_logger
 
 
@@ -160,7 +158,7 @@ class TestPrunArrLogger:
     @patch("prunarr.logger.Console")
     def test_console_initialization(self, mock_console_class):
         """Test that console is initialized with stderr=True."""
-        logger = PrunArrLogger()
+        PrunArrLogger()
         mock_console_class.assert_called_once_with(stderr=True)
 
     def test_multiple_log_levels(self):

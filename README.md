@@ -146,17 +146,31 @@ PrunArr loads configuration in the following order (later sources override earli
 2. Go to **Settings** → **Web Interface**
 3. Copy the **API Key** from the API section
 
-## User Tag System
+## Tag System
 
-PrunArr uses a specific tag format in Radarr/Sonarr to track who requested content:
+PrunArr uses tags in Radarr/Sonarr for both user tracking and organizational filtering:
+
+### User Tags
 
 **Tag Format**: `"userid - username"`
 
 Example: `"123 - john_doe"`
 
-- Only movies/shows with tags matching this pattern are processed
+- Only movies/shows with tags matching this pattern are processed for removal
 - The username must match a user in Tautulli
 - Content is only removed when watched by the user specified in the tag
+
+### Organizational Tags
+
+PrunArr also displays and filters by non-user tags (tags that don't match the user tag pattern):
+
+**Examples**: `"4K"`, `"Action"`, `"Kids"`, `"HDR"`, `"Documentary"`
+
+- **Display**: Non-user tags appear in the Tags column of list commands (max 3 shown, "+N more" for additional)
+- **Filtering**: Use `--tag` to include only items with specific tags, or `--exclude-tag` to exclude items
+- **Case-Insensitive**: Tag matching is case-insensitive ("4k" matches "4K")
+- **Multiple Tags**: Specify `--tag` or `--exclude-tag` multiple times
+- **Match Modes**: Use `--tag-match-all` to require ALL specified tags instead of ANY
 
 ## Streaming Provider Integration (JustWatch)
 
@@ -267,6 +281,13 @@ prunarr movies list --min-filesize "2GB"
 # Exclude movies without user tags
 prunarr movies list --exclude-untagged
 
+# Filter by organizational tags
+prunarr movies list --tag "4K"                          # Show only 4K movies
+prunarr movies list --tag "Action" --tag "Sci-Fi"      # Show Action OR Sci-Fi movies
+prunarr movies list --tag "4K" --tag "HDR" --tag-match-all  # Show movies with BOTH 4K AND HDR
+prunarr movies list --exclude-tag "Kids"               # Exclude kids movies
+prunarr movies list --tag "Action" --exclude-tag "Kids" # Action movies, but not kids content
+
 # Sort by different criteria
 prunarr movies list --sort-by filesize --desc
 prunarr movies list --sort-by watched_date --limit 20
@@ -312,6 +333,11 @@ prunarr movies remove --min-filesize "5GB" --days-watched 180 --dry-run
 # Streaming provider-based removal (requires streaming_enabled=true in config)
 prunarr movies remove --on-streaming --days-watched 30      # Remove watched movies you can stream
 prunarr movies remove --not-on-streaming --days-watched 180 # Keep unique content longer
+
+# Tag-based removal targeting
+prunarr movies remove --tag "Kids" --days-watched 14        # Cleanup kids movies after 2 weeks
+prunarr movies remove --exclude-tag "Favorites" --days-watched 30  # Keep favorites longer
+prunarr movies remove --tag "4K" --min-filesize "10GB"     # Target large 4K files
 ```
 
 ### 📺 TV Series Management (`prunarr series`)
@@ -332,6 +358,13 @@ prunarr series list --series "breaking bad"
 
 # Focus on specific season
 prunarr series list --series "the office" --season 2
+
+# Filter by organizational tags
+prunarr series list --tag "4K"                          # Show only 4K series
+prunarr series list --tag "Drama" --tag "Sci-Fi"       # Show Drama OR Sci-Fi series
+prunarr series list --tag "4K" --tag "HDR" --tag-match-all  # Show series with BOTH 4K AND HDR
+prunarr series list --exclude-tag "Kids"               # Exclude kids series
+prunarr series list --tag "Drama" --exclude-tag "Reality" # Drama series, but not reality TV
 
 # Limit results for quick overview
 prunarr series list --limit 10
@@ -387,6 +420,11 @@ prunarr series remove --series "completed show name"
 
 # Skip confirmation prompts
 prunarr series remove --yes
+
+# Tag-based removal targeting
+prunarr series remove --tag "Kids" --days-watched 14        # Cleanup kids shows after 2 weeks
+prunarr series remove --exclude-tag "Favorites" --days-watched 60  # Keep favorites longer
+prunarr series remove --tag "Reality" --days-watched 30     # Quick cleanup of reality TV
 
 # Planned: Season-level removal
 prunarr series remove --mode season --days-watched 90
@@ -602,6 +640,21 @@ prunarr series list \
   --username "binge_watcher" \
   --limit 10
 
+# Tag-based filtering combinations
+prunarr movies list \
+  --tag "4K" \
+  --tag "HDR" \
+  --tag-match-all \
+  --min-filesize "10GB" \
+  --watched \
+  --days-watched 90
+
+prunarr series list \
+  --tag "Drama" \
+  --exclude-tag "Reality" \
+  --exclude-tag "Kids" \
+  --watched
+
 # Targeted cleanup operations
 prunarr movies remove \
   --days-watched 180 \
@@ -646,6 +699,7 @@ PrunArr uses a sophisticated multi-step process to safely and intelligently mana
 - **Watch Status Types**: Watched, unwatched, partially watched, watched by others
 - **Time-based Criteria**: Days since watched, addition date, custom time ranges
 - **File Size Filtering**: Minimum/maximum file size requirements with flexible units
+- **Tag-based Filtering**: Include/exclude content by organizational tags with ANY or ALL matching modes
 - **Multi-dimensional Combinations**: Combine any filters for precise control
 
 ### 📊 Comprehensive Data Analysis

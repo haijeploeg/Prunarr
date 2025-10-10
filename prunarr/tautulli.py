@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 
-from prunarr.logger import get_logger
+from prunarr.api.base_client import BaseAPIClient
 
 # Compiled regex patterns for efficient ID extraction
 IMDB_ID_PATTERN = re.compile(r"^imdb:\/\/(tt\d+)")
@@ -34,7 +34,7 @@ except ImportError:
     CacheManager = None
 
 
-class TautulliAPI:
+class TautulliAPI(BaseAPIClient):
     """
     Advanced Tautulli API client with comprehensive watch history and metadata capabilities.
 
@@ -78,12 +78,15 @@ class TautulliAPI:
             >>> tautulli = TautulliAPI("http://localhost:8181", "your-api-key")
             >>> history = tautulli.get_watch_history(limit=100)
         """
-        self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
-        self.cache_manager = cache_manager
-        self.logger = get_logger("prunarr.tautulli", debug=debug, log_level=log_level)
+        super().__init__(base_url, api_key, cache_manager, debug, log_level)
 
-        self.logger.debug(f"Initialized TautulliAPI client: {self.base_url}")
+    def _get_logger_name(self) -> str:
+        """Get the logger name for this API client."""
+        return "prunarr.tautulli"
+
+    def _initialize_client(self) -> None:
+        """Initialize the Tautulli API client (no separate client library)."""
+        # Tautulli uses direct HTTP requests, no separate client library needed
 
     def _request(self, cmd: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """

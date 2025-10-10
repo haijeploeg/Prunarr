@@ -22,12 +22,14 @@ test-fast: ## Run tests without coverage
 lint: ## Run all linting checks
 	flake8 prunarr/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
 	flake8 prunarr/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
+	autoflake --check --remove-all-unused-imports --remove-unused-variables -r prunarr/ tests/
 	black --check prunarr/ tests/
 	isort --check-only prunarr/ tests/
 
-format: ## Format code with black and isort
-	black prunarr/ tests/
+format: ## Format code with black, isort, and autoflake
+	autoflake --in-place --remove-all-unused-imports --remove-unused-variables -r prunarr/ tests/
 	isort prunarr/ tests/
+	black prunarr/ tests/
 
 clean: ## Clean build artifacts and cache
 	rm -rf build/ dist/ *.egg-info/ htmlcov/ .coverage .pytest_cache/ .mypy_cache/

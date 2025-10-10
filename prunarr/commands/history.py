@@ -20,11 +20,9 @@ from prunarr.utils import (
     format_history_watch_status,
     format_timestamp,
     safe_get,
-    safe_str,
 )
-from prunarr.utils.serializers import prepare_datetime_for_json
 from prunarr.utils.tables import create_history_details_table, create_history_table
-from prunarr.utils.validators import validate_media_type, validate_output_format
+from prunarr.utils.validators import validate_output_format
 
 app = typer.Typer(help="Manage Tautulli history.", rich_markup_mode="rich")
 console = Console()

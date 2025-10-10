@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 
 from pyarr import RadarrAPI as PyarrRadarrAPI
 
-from prunarr.logger import get_logger
+from prunarr.api.base_client import BaseAPIClient
 
 # Optional cache manager import
 try:
@@ -28,7 +28,7 @@ except ImportError:
     CacheManager = None
 
 
-class RadarrAPI:
+class RadarrAPI(BaseAPIClient):
     """
     Enhanced Radarr API client with comprehensive movie management capabilities.
 
@@ -71,13 +71,15 @@ class RadarrAPI:
             >>> radarr = RadarrAPI("http://localhost:7878", "your-api-key")
             >>> movies = radarr.get_movie()
         """
-        self.base_url = url.rstrip("/")
-        self.api_key = api_key
-        self.cache_manager = cache_manager
-        self.logger = get_logger("prunarr.radarr", debug=debug, log_level=log_level)
-        self._api = PyarrRadarrAPI(self.base_url, api_key)
+        super().__init__(url, api_key, cache_manager, debug, log_level)
 
-        self.logger.debug(f"Initialized RadarrAPI client: {self.base_url}")
+    def _get_logger_name(self) -> str:
+        """Get the logger name for this API client."""
+        return "prunarr.radarr"
+
+    def _initialize_client(self) -> None:
+        """Initialize the underlying pyarr RadarrAPI client."""
+        self._api = PyarrRadarrAPI(self.base_url, self.api_key)
 
     def get_movie(self, movie_id: Optional[int] = None, **kwargs) -> List[Dict[str, Any]]:
         """

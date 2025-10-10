@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional
 import requests
 from pyarr import SonarrAPI as PyarrSonarrAPI
 
-from prunarr.logger import get_logger
+from prunarr.api.base_client import BaseAPIClient
 
 # Optional cache manager import
 try:
@@ -30,7 +30,7 @@ except ImportError:
     CacheManager = None
 
 
-class SonarrAPI:
+class SonarrAPI(BaseAPIClient):
     """
     Enhanced Sonarr API client with comprehensive TV series and episode management capabilities.
 
@@ -75,13 +75,18 @@ class SonarrAPI:
             >>> sonarr = SonarrAPI("http://localhost:8989", "your-api-key")
             >>> series = sonarr.get_series()
         """
-        self._base_url = url.rstrip("/")
-        self._api_key = api_key
-        self.cache_manager = cache_manager
-        self.logger = get_logger("prunarr.sonarr", debug=debug, log_level=log_level)
-        self._api = PyarrSonarrAPI(self._base_url, api_key)
+        # Note: SonarrAPI uses _base_url and _api_key internally for direct API calls
+        super().__init__(url, api_key, cache_manager, debug, log_level)
+        self._base_url = self.base_url
+        self._api_key = self.api_key
 
-        self.logger.debug(f"Initialized SonarrAPI client: {self._base_url}")
+    def _get_logger_name(self) -> str:
+        """Get the logger name for this API client."""
+        return "prunarr.sonarr"
+
+    def _initialize_client(self) -> None:
+        """Initialize the underlying pyarr SonarrAPI client."""
+        self._api = PyarrSonarrAPI(self.base_url, self.api_key)
 
     def get_series(self, series_id: Optional[int] = None, **kwargs) -> List[Dict[str, Any]]:
         """
