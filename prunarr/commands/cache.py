@@ -8,7 +8,6 @@ including initialization, status reporting, and cache clearing operations.
 import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -41,11 +40,15 @@ def _setup_context(ctx: typer.Context):
     return settings, debug, logger
 
 
-def _validate_cache_enabled(settings: Settings, logger, debug: bool = False, require_enabled: bool = True):
+def _validate_cache_enabled(
+    settings: Settings, logger, debug: bool = False, require_enabled: bool = True
+):
     """Validate cache is enabled and return PrunArr instance."""
     if not settings.cache_enabled:
         if require_enabled:
-            logger.error("Caching is disabled in configuration. Set cache_enabled=true to use caching.")
+            logger.error(
+                "Caching is disabled in configuration. Set cache_enabled=true to use caching."
+            )
             raise typer.Exit(1)
         else:
             logger.warning("Caching is disabled in configuration")
@@ -64,7 +67,11 @@ def _fetch_data(prunarr: PrunArr, data_type: str, logger):
     actions = {
         "movies": (prunarr.radarr.get_movie, "movies", "movies"),
         "series": (prunarr.sonarr.get_series, "series", "series"),
-        "history": (lambda: prunarr.tautulli.get_watch_history(page_size=1000), "watch history", "watch history records"),
+        "history": (
+            lambda: prunarr.tautulli.get_watch_history(page_size=1000),
+            "watch history",
+            "watch history records",
+        ),
     }
 
     if data_type not in actions:
@@ -157,7 +164,10 @@ def _cache_episodes(prunarr: PrunArr, series_data: list):
         total_episodes = 0
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS_API_HEAVY) as executor:
-            futures = {executor.submit(prunarr.sonarr.get_episodes_by_series_id, sid): sid for sid in series_ids}
+            futures = {
+                executor.submit(prunarr.sonarr.get_episodes_by_series_id, sid): sid
+                for sid in series_ids
+            }
             for future in as_completed(futures):
                 try:
                     episodes = future.result()
@@ -166,7 +176,9 @@ def _cache_episodes(prunarr: PrunArr, series_data: list):
                 except Exception:
                     pass
 
-        console.print(f"[green]✓[/green] Cached {total_episodes} episodes across {cached_series} series")
+        console.print(
+            f"[green]✓[/green] Cached {total_episodes} episodes across {cached_series} series"
+        )
 
 
 def _cache_streaming(prunarr: PrunArr, results: dict, settings: Settings, logger, debug: bool):
@@ -191,7 +203,9 @@ def _cache_streaming(prunarr: PrunArr, results: dict, settings: Settings, logger
         logger.warning("No items to cache streaming availability for")
         return
 
-    with console.status(f"[cyan]Checking streaming availability for {len(items_to_cache)} items..."):
+    with console.status(
+        f"[cyan]Checking streaming availability for {len(items_to_cache)} items..."
+    ):
         cached_items = 0
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS_API_HEAVY) as executor:
@@ -220,14 +234,25 @@ def _cache_streaming(prunarr: PrunArr, results: dict, settings: Settings, logger
                 except Exception as e:
                     if debug:
                         item_type, item = futures[future]
-                        logger.debug(f"Failed to cache streaming for {item_type} '{item.get('title')}': {str(e)}")
+                        logger.debug(
+                            f"Failed to cache streaming for {item_type} '{item.get('title')}': {str(e)}"
+                        )
 
         console.print(f"[green]✓[/green] Cached streaming availability for {cached_items} items")
 
 
-def _clear_cache_types(prunarr: PrunArr, logger, movies: bool = False, series: bool = False,
-                       history: bool = False, tags: bool = False, metadata: bool = False,
-                       episodes: bool = False, streaming: bool = False, all_cache: bool = False):
+def _clear_cache_types(
+    prunarr: PrunArr,
+    logger,
+    movies: bool = False,
+    series: bool = False,
+    history: bool = False,
+    tags: bool = False,
+    metadata: bool = False,
+    episodes: bool = False,
+    streaming: bool = False,
+    all_cache: bool = False,
+):
     """
     Clear specified cache types and display confirmation message.
 
@@ -285,8 +310,17 @@ def _clear_cache_types(prunarr: PrunArr, logger, movies: bool = False, series: b
     return cleared_types
 
 
-def _perform_cache_init(prunarr: PrunArr, settings: Settings, logger, debug: bool,
-                        movies: bool, series: bool, history: bool, episodes: bool, streaming: bool):
+def _perform_cache_init(
+    prunarr: PrunArr,
+    settings: Settings,
+    logger,
+    debug: bool,
+    movies: bool,
+    series: bool,
+    history: bool,
+    episodes: bool,
+    streaming: bool,
+):
     """Perform cache initialization with specified options."""
     # Phase 1: Fetch main data
     results = {}
@@ -296,7 +330,9 @@ def _perform_cache_init(prunarr: PrunArr, settings: Settings, logger, debug: boo
                 results[data_type] = data
 
     if not results:
-        logger.warning("No data types selected for caching. Use --movies, --series, or --history flags.")
+        logger.warning(
+            "No data types selected for caching. Use --movies, --series, or --history flags."
+        )
         raise typer.Exit(0)
 
     # Phase 2: Cache tags
@@ -332,10 +368,21 @@ def _perform_cache_init(prunarr: PrunArr, settings: Settings, logger, debug: boo
 @app.command("init")
 def init_cache(
     ctx: typer.Context,
-    movies: bool = typer.Option(True, "--movies/--no-movies", "-m", help="Cache movies data (default: True)"),
-    series: bool = typer.Option(True, "--series/--no-series", "-s", help="Cache series data (default: True)"),
-    history: bool = typer.Option(True, "--history/--no-history", "-h", help="Cache watch history (default: True)"),
-    episodes: bool = typer.Option(False, "--episodes/--no-episodes", "-e", help="Pre-fetch ALL episodes for each series (slower, but fully cached)"),
+    movies: bool = typer.Option(
+        True, "--movies/--no-movies", "-m", help="Cache movies data (default: True)"
+    ),
+    series: bool = typer.Option(
+        True, "--series/--no-series", "-s", help="Cache series data (default: True)"
+    ),
+    history: bool = typer.Option(
+        True, "--history/--no-history", "-h", help="Cache watch history (default: True)"
+    ),
+    episodes: bool = typer.Option(
+        False,
+        "--episodes/--no-episodes",
+        "-e",
+        help="Pre-fetch ALL episodes for each series (slower, but fully cached)",
+    ),
     streaming: bool = typer.Option(
         False,
         "--streaming/--no-streaming",
@@ -390,11 +437,15 @@ def init_cache(
     logger.info("Initializing PrunArr cache...")
 
     try:
-        _perform_cache_init(prunarr, settings, logger, debug, movies, series, history, episodes, streaming)
+        _perform_cache_init(
+            prunarr, settings, logger, debug, movies, series, history, episodes, streaming
+        )
 
         # Show cache stats
         stats = prunarr.cache_manager.get_stats()
-        console.print(f"\n[bold green]✓ Cache initialized![/bold green] Size: {stats['size_mb']} MB")
+        console.print(
+            f"\n[bold green]✓ Cache initialized![/bold green] Size: {stats['size_mb']} MB"
+        )
         console.print(f"  Cache location: {stats['cache_dir']}")
     except Exception as e:
         logger.error(f"Failed to initialize cache: {str(e)}")
@@ -463,7 +514,9 @@ def cache_status(
                 "hits": stats.get("hits", 0),
                 "misses": stats.get("misses", 0),
                 "hit_rate_percentage": round(hit_rate, 1),
-                "last_accessed": datetime.fromtimestamp(last_accessed).isoformat() if last_accessed else None,
+                "last_accessed": (
+                    datetime.fromtimestamp(last_accessed).isoformat() if last_accessed else None
+                ),
                 "ttl_settings": {
                     "movies_seconds": settings.cache_ttl_movies,
                     "series_seconds": settings.cache_ttl_series,
@@ -476,7 +529,9 @@ def cache_status(
             table.add_column("Property", style="cyan")
             table.add_column("Value", style="white")
 
-            table.add_row("Status", "[green]Enabled[/green]" if stats["enabled"] else "[red]Disabled[/red]")
+            table.add_row(
+                "Status", "[green]Enabled[/green]" if stats["enabled"] else "[red]Disabled[/red]"
+            )
             table.add_row("Cache Directory", str(stats.get("cache_dir", "N/A")))
             table.add_row("Total Size", f"{stats.get('size_mb', 0)} MB")
             table.add_row("Cached Files", str(stats.get("file_count", 0)))
@@ -507,8 +562,12 @@ def clear_cache(
     history: bool = typer.Option(False, "--history/--no-history", "-h", help="Clear history cache"),
     tags: bool = typer.Option(False, "--tags/--no-tags", help="Clear tags cache"),
     metadata: bool = typer.Option(False, "--metadata/--no-metadata", help="Clear metadata cache"),
-    episodes: bool = typer.Option(False, "--episodes/--no-episodes", "-e", help="Clear episodes cache"),
-    streaming: bool = typer.Option(False, "--streaming/--no-streaming", "-t", help="Clear streaming cache"),
+    episodes: bool = typer.Option(
+        False, "--episodes/--no-episodes", "-e", help="Clear episodes cache"
+    ),
+    streaming: bool = typer.Option(
+        False, "--streaming/--no-streaming", "-t", help="Clear streaming cache"
+    ),
     all_cache: bool = typer.Option(False, "--all", "-a", help="Clear all cache"),
     force: bool = typer.Option(False, "--force", "-f", help="Skip confirmation prompt"),
 ):
@@ -563,7 +622,9 @@ def clear_cache(
 
     # Determine what to clear
     if not any([movies, series, history, tags, metadata, episodes, streaming, all_cache]):
-        logger.warning("No cache types selected. Use flags like -m, -s, -h, or --all to specify what to clear.")
+        logger.warning(
+            "No cache types selected. Use flags like -m, -s, -h, or --all to specify what to clear."
+        )
         logger.info("Run 'prunarr cache clear --help' for examples")
         raise typer.Exit(0)
 
@@ -595,7 +656,8 @@ def clear_cache(
 
     try:
         _clear_cache_types(
-            prunarr, logger,
+            prunarr,
+            logger,
             movies=movies,
             series=series,
             history=history,
@@ -613,10 +675,21 @@ def clear_cache(
 @app.command("refresh")
 def refresh_cache(
     ctx: typer.Context,
-    movies: bool = typer.Option(True, "--movies/--no-movies", "-m", help="Refresh movies data (default: True)"),
-    series: bool = typer.Option(True, "--series/--no-series", "-s", help="Refresh series data (default: True)"),
-    history: bool = typer.Option(True, "--history/--no-history", "-h", help="Refresh watch history (default: True)"),
-    episodes: bool = typer.Option(False, "--episodes/--no-episodes", "-e", help="Refresh ALL episodes for each series (slower)"),
+    movies: bool = typer.Option(
+        True, "--movies/--no-movies", "-m", help="Refresh movies data (default: True)"
+    ),
+    series: bool = typer.Option(
+        True, "--series/--no-series", "-s", help="Refresh series data (default: True)"
+    ),
+    history: bool = typer.Option(
+        True, "--history/--no-history", "-h", help="Refresh watch history (default: True)"
+    ),
+    episodes: bool = typer.Option(
+        False,
+        "--episodes/--no-episodes",
+        "-e",
+        help="Refresh ALL episodes for each series (slower)",
+    ),
     streaming: bool = typer.Option(
         False,
         "--streaming/--no-streaming",
@@ -671,7 +744,9 @@ def refresh_cache(
         clear_items.append("history")
 
     if not clear_items:
-        logger.warning("No data types selected for refresh. Use --movies, --series, or --history flags.")
+        logger.warning(
+            "No data types selected for refresh. Use --movies, --series, or --history flags."
+        )
         raise typer.Exit(0)
 
     logger.info(f"Refreshing cache for: {', '.join(clear_items)}...")
@@ -680,7 +755,8 @@ def refresh_cache(
         # Clear selected cache types (with dependencies)
         # Note: Episodes are cleared automatically with series
         _clear_cache_types(
-            prunarr, logger,
+            prunarr,
+            logger,
             movies=movies,
             series=series,  # This also clears episodes
             history=history,
@@ -691,7 +767,9 @@ def refresh_cache(
         console.print()  # Add blank line for spacing
 
         # Re-initialize with the same flags
-        _perform_cache_init(prunarr, settings, logger, debug, movies, series, history, episodes, streaming)
+        _perform_cache_init(
+            prunarr, settings, logger, debug, movies, series, history, episodes, streaming
+        )
 
         # Show cache stats
         stats = prunarr.cache_manager.get_stats()

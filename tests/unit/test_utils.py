@@ -6,8 +6,6 @@ Tests formatting functions, episode key handling, and other shared utilities.
 
 from datetime import datetime
 
-import pytest
-
 from prunarr.utils import (
     format_completion_percentage,
     format_date,

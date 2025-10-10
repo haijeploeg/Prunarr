@@ -24,7 +24,13 @@ from prunarr.cache import CacheConfig, CacheManager
 from prunarr.config import Settings
 from prunarr.logger import get_logger
 from prunarr.radarr import RadarrAPI
-from prunarr.services import MediaMatcher, UserService, WatchCalculator
+from prunarr.services import (
+    MediaMatcher,
+    MovieService,
+    SeriesService,
+    UserService,
+    WatchCalculator,
+)
 from prunarr.sonarr import SonarrAPI
 from prunarr.tautulli import TautulliAPI
 from prunarr.utils import make_episode_key
@@ -127,6 +133,24 @@ class PrunArr:
         self.user_service = UserService(settings.user_tag_regex)
         self.media_matcher = MediaMatcher()
         self.watch_calculator = WatchCalculator()
+        self.movie_service = MovieService(
+            radarr=self.radarr,
+            tautulli=self.tautulli,
+            user_service=self.user_service,
+            media_matcher=self.media_matcher,
+            watch_calculator=self.watch_calculator,
+            cache_manager=self.cache_manager,
+            logger=self.logger,
+        )
+        self.series_service = SeriesService(
+            sonarr=self.sonarr,
+            tautulli=self.tautulli,
+            user_service=self.user_service,
+            media_matcher=self.media_matcher,
+            watch_calculator=self.watch_calculator,
+            cache_manager=self.cache_manager,
+            logger=self.logger,
+        )
 
     def check_and_log_cache_status(self, cache_key: str, logger) -> bool:
         """
@@ -206,53 +230,16 @@ class PrunArr:
         Returns:
             List of movies with id, title, imdb_id, user, year, and file info
         """
-        self.logger.debug(f"get_all_radarr_movies: include_untagged={include_untagged}")
-        result: List[Dict[str, Any]] = []
-        movies = self.radarr.get_movie()
-        self.logger.debug(f"Fetched {len(movies)} movies from Radarr API")
-
-        for movie in movies:
-            movie_file = movie.get("movieFile")
-            tag_ids = movie.get("tags", [])
-
-            # Skip movies without downloaded files
-            if not movie_file:
-                continue
-
-            # Determine user from tags
-            username = self.get_user_tags(tag_ids) if tag_ids else None
-
-            # Skip untagged movies if not requested
-            if not include_untagged and not username:
-                continue
-
-            result.append(
-                {
-                    "id": movie.get("id"),
-                    "title": movie.get("title"),
-                    "year": movie.get("year"),
-                    "imdb_id": movie.get("imdbId"),
-                    "user": username,
-                    "has_file": bool(movie_file),
-                    "file_size": movie_file.get("size", 0) if movie_file else 0,
-                    "added": movie.get("added"),
-                    "monitored": movie.get("monitored", False),
-                    "tags": tag_ids,
-                }
-            )
-
-        return result
+        return self.movie_service.get_all_movies(include_untagged=include_untagged)
 
     def _build_movie_watch_lookup(self, tautulli_history: List[Dict[str, Any]]) -> Dict[str, Dict]:
-        """Build lookup dictionary for movie watch history by IMDB ID (helper)."""
-        # Delegate to media matcher service
+        """Build lookup dictionary for movie watch history by IMDB ID (helper for tests)."""
         return self.media_matcher.build_movie_watch_lookup(tautulli_history, self.tautulli)
 
     def _determine_movie_watch_status(
         self, movie_user: Optional[str], all_watchers: List[str]
     ) -> tuple[str, Optional[str]]:
-        """Determine watch status and watched_by display for a movie (helper)."""
-        # Delegate to watch calculator service
+        """Determine watch status and watched_by display for a movie (helper for tests)."""
         return self.watch_calculator.determine_movie_watch_status(movie_user, all_watchers)
 
     def get_movies_with_watch_status(
@@ -272,73 +259,11 @@ class PrunArr:
         Returns:
             List of movies with watch status, last watched date, and days since watched
         """
-        self.logger.debug(
-            f"get_movies_with_watch_status: include_untagged={include_untagged}, username_filter={username_filter}, check_streaming={check_streaming}"
+        return self.movie_service.get_movies_with_watch_status(
+            include_untagged=include_untagged,
+            username_filter=username_filter,
+            check_streaming=check_streaming,
         )
-
-        all_movies = self.get_all_radarr_movies(include_untagged=include_untagged)
-        self.logger.debug(f"Retrieved {len(all_movies)} movies from Radarr")
-
-        tautulli_history = self.tautulli.get_movie_completed_history()
-        self.logger.debug(
-            f"Retrieved {len(tautulli_history)} movie watch history records from Tautulli"
-        )
-
-        watch_lookup = self._build_movie_watch_lookup(tautulli_history)
-        self.logger.debug(f"Built watch lookup for {len(watch_lookup)} unique movies")
-
-        now = datetime.now()
-        movies_with_status = []
-
-        for movie in all_movies:
-            if username_filter and movie.get("user") != username_filter:
-                continue
-
-            imdb_id = movie.get("imdb_id")
-            watch_info = watch_lookup.get(imdb_id, {})
-            watchers = watch_info.get("watchers", {})
-
-            # Calculate days since watched
-            most_recent_watch_ts = watch_info.get("most_recent_watch")
-            watched_date = None
-            days_since_watched = None
-
-            if most_recent_watch_ts:
-                watched_date = datetime.fromtimestamp(int(most_recent_watch_ts))
-                days_since_watched = (now - watched_date).days
-
-            # Determine watch status
-            all_watchers = list(watchers.keys())
-            watch_status, watched_by_display = self._determine_movie_watch_status(
-                movie.get("user"), all_watchers
-            )
-
-            # Check streaming availability from cache if enabled
-            streaming_available = None
-            if check_streaming and self.cache_manager and imdb_id:
-                cache_key = f"streaming_movie_{imdb_id}"
-                streaming_available = self.cache_manager.get(cache_key)
-                if streaming_available is not None:
-                    self.logger.debug(
-                        f"Found cached streaming status for {movie.get('title')}: {streaming_available}"
-                    )
-
-            movie_data = {
-                **movie,
-                "watch_status": watch_status,
-                "watched_by": watched_by_display,
-                "watched_at": watched_date,
-                "days_since_watched": days_since_watched,
-                "all_watchers": all_watchers,
-            }
-
-            # Only add streaming_available if we checked
-            if streaming_available is not None:
-                movie_data["streaming_available"] = streaming_available
-
-            movies_with_status.append(movie_data)
-
-        return movies_with_status
 
     def get_movies_ready_for_removal(self, days_watched: int) -> List[Dict[str, Any]]:
         """
@@ -350,15 +275,7 @@ class PrunArr:
         Returns:
             List of movies ready for removal
         """
-        movies_with_status = self.get_movies_with_watch_status(include_untagged=False)
-
-        return [
-            movie
-            for movie in movies_with_status
-            if movie.get("watch_status") == "watched"
-            and movie.get("days_since_watched") is not None
-            and movie.get("days_since_watched") >= days_watched
-        ]
+        return self.movie_service.get_movies_ready_for_removal(days_watched=days_watched)
 
     # Episode watch lookup helpers
 
@@ -584,49 +501,7 @@ class PrunArr:
         Returns:
             List of series with id, title, tvdb_id, user, year, and file info
         """
-        self.logger.debug(f"get_all_sonarr_series: include_untagged={include_untagged}")
-        result: List[Dict[str, Any]] = []
-        series_list = self.sonarr.get_series()
-        self.logger.debug(f"Fetched {len(series_list)} series from Sonarr API")
-
-        for series in series_list:
-            tag_ids = series.get("tags", [])
-
-            # Determine user from tags
-            username = self.get_user_tags(tag_ids, self.sonarr) if tag_ids else None
-
-            # Skip untagged series if not requested
-            if not include_untagged and not username:
-                continue
-
-            # Get season info
-            seasons = series.get("seasons", [])
-            total_episodes = sum(season.get("totalEpisodeCount", 0) for season in seasons)
-            downloaded_episodes = sum(season.get("episodeFileCount", 0) for season in seasons)
-
-            result.append(
-                {
-                    "id": series.get("id"),
-                    "title": series.get("title"),
-                    "year": series.get("year"),
-                    "tvdb_id": series.get("tvdbId"),
-                    "imdb_id": series.get("imdbId"),
-                    "user": username,
-                    "has_file": downloaded_episodes > 0,
-                    "total_episodes": total_episodes,
-                    "downloaded_episodes": downloaded_episodes,
-                    "added": series.get("added"),
-                    "monitored": series.get("monitored", False),
-                    "status": series.get("status"),
-                    "seasons": seasons,
-                    "tags": tag_ids,
-                    "statistics": series.get(
-                        "statistics", {}
-                    ),  # Include statistics for episode counts
-                }
-            )
-
-        return result
+        return self.series_service.get_all_series(include_untagged=include_untagged)
 
     def get_series_with_watch_status(
         self,
@@ -649,123 +524,19 @@ class PrunArr:
         Returns:
             List of series with watch status, episode details, and watch progress
         """
-        self.logger.debug(
-            f"get_series_with_watch_status: include_untagged={include_untagged}, username_filter={username_filter}, series_filter={series_filter}, season_filter={season_filter}, check_streaming={check_streaming}"
+        return self.series_service.get_series_with_watch_status(
+            include_untagged=include_untagged,
+            username_filter=username_filter,
+            series_filter=series_filter,
+            season_filter=season_filter,
+            check_streaming=check_streaming,
         )
-
-        # Get and filter series
-        all_series = self.get_all_sonarr_series(include_untagged=include_untagged)
-        self.logger.debug(f"Retrieved {len(all_series)} series from Sonarr")
-
-        if series_filter:
-            all_series = [
-                s for s in all_series if series_filter.lower() in s.get("title", "").lower()
-            ]
-            self.logger.debug(f"After series_filter '{series_filter}': {len(all_series)} series")
-
-        if username_filter:
-            all_series = [s for s in all_series if s.get("user") == username_filter]
-            self.logger.debug(
-                f"After username_filter '{username_filter}': {len(all_series)} series"
-            )
-
-        # Build watch lookup
-        tautulli_history = self.tautulli.get_episode_completed_history()
-        self.logger.debug(
-            f"Retrieved {len(tautulli_history)} episode watch history records from Tautulli"
-        )
-
-        series_tvdb_cache = self.tautulli.build_series_metadata_cache(tautulli_history)
-        self.logger.debug(f"Built TVDB cache with {len(series_tvdb_cache)} unique series")
-
-        watch_lookup = self._build_episode_watch_lookup(tautulli_history, series_tvdb_cache)
-        self.logger.debug(f"Built episode watch lookup for {len(watch_lookup)} series")
-
-        # Process each series
-        series_with_status = []
-
-        for series in all_series:
-            series_id = series.get("id")
-            tvdb_id = str(series.get("tvdb_id", ""))
-            series_watch_info = watch_lookup.get(tvdb_id, {})
-            series_user = series.get("user")
-
-            # Get episode counts
-            statistics = series.get("statistics", {})
-            total_available_episodes = statistics.get("episodeCount", 0)
-            total_downloaded_episodes = statistics.get("episodeFileCount", 0)
-            total_episodes_in_watch_history = len(series_watch_info)
-
-            # Determine best episode count source
-            actual_total_episodes = (
-                total_available_episodes
-                or total_episodes_in_watch_history
-                or total_downloaded_episodes
-            )
-
-            # Count watched episodes
-            total_watched_episodes = self._count_watched_episodes(
-                series_watch_info, series_user, season_filter
-            )
-
-            # Determine watch status
-            watch_status = self._determine_series_watch_status(
-                total_watched_episodes, actual_total_episodes
-            )
-
-            # Calculate most recent watch
-            most_recent_watch, days_since_watched = self._calculate_most_recent_watch(
-                series_watch_info
-            )
-
-            # Get available seasons string
-            available_seasons_str = self._get_available_seasons_str(series_id)
-
-            # Calculate total series filesize
-            total_size_on_disk = sum(
-                season.get("statistics", {}).get("sizeOnDisk", 0)
-                for season in series.get("seasons", [])
-            )
-
-            # Check streaming availability from cache if enabled
-            streaming_available = None
-            if check_streaming and self.cache_manager and tvdb_id:
-                cache_key = f"streaming_series_{tvdb_id}"
-                streaming_available = self.cache_manager.get(cache_key)
-                if streaming_available is not None:
-                    self.logger.debug(
-                        f"Found cached streaming status for {series.get('title')}: {streaming_available}"
-                    )
-
-            series_data = {
-                **series,
-                "watch_status": watch_status,
-                "watched_episodes": total_watched_episodes,
-                "total_episodes": actual_total_episodes,
-                "completion_percentage": (
-                    (total_watched_episodes / actual_total_episodes * 100)
-                    if actual_total_episodes > 0
-                    else 0
-                ),
-                "most_recent_watch": most_recent_watch,
-                "days_since_watched": days_since_watched,
-                "available_seasons": available_seasons_str,
-                "total_size_on_disk": total_size_on_disk,
-            }
-
-            # Only add streaming_available if we checked
-            if streaming_available is not None:
-                series_data["streaming_available"] = streaming_available
-
-            series_with_status.append(series_data)
-
-        return series_with_status
 
     def get_series_ready_for_removal(
         self,
         days_watched: int,
         removal_mode: str = "series",
-        check_streaming: bool = False,  # "series" or "season"
+        check_streaming: bool = False,
     ) -> List[Dict[str, Any]]:
         """
         Get series that are ready for removal based on watch criteria.
@@ -778,43 +549,11 @@ class PrunArr:
         Returns:
             List of series or seasons ready for removal
         """
-        series_with_status = self.get_series_with_watch_status(
-            include_untagged=False, check_streaming=check_streaming
+        return self.series_service.get_series_ready_for_removal(
+            days_watched=days_watched,
+            removal_mode=removal_mode,
+            check_streaming=check_streaming,
         )
-        items_to_remove = []
-
-        for series in series_with_status:
-            series_user = series.get("user")
-            if not series_user:
-                continue
-
-            if removal_mode == "series":
-                # Remove entire series if fully watched by requester and old enough
-                if (
-                    series.get("watch_status") == "fully_watched"
-                    and series.get("days_since_watched") is not None
-                    and series.get("days_since_watched") >= days_watched
-                ):
-                    items_to_remove.append({**series, "removal_type": "series"})
-
-            elif removal_mode == "season":
-                # Remove individual seasons that are fully watched
-                for season_data in series.get("seasons_data", []):
-                    if (
-                        season_data.get("completion_percentage") == 100
-                        and series.get("days_since_watched") is not None
-                        and series.get("days_since_watched") >= days_watched
-                    ):
-                        items_to_remove.append(
-                            {
-                                **series,
-                                "removal_type": "season",
-                                "season_number": season_data.get("season_number"),
-                                "season_data": season_data,
-                            }
-                        )
-
-        return items_to_remove
 
     def find_series_by_identifier(self, identifier: str) -> List[Dict[str, Any]]:
         """
@@ -826,31 +565,7 @@ class PrunArr:
         Returns:
             List of matching series (may be empty, single match, or multiple matches)
         """
-        all_series = self.get_all_sonarr_series(include_untagged=True)
-
-        # Check if identifier is numeric (series ID)
-        if identifier.isdigit():
-            series_id = int(identifier)
-            matching_series = [s for s in all_series if s.get("id") == series_id]
-            return matching_series
-
-        # Search by title with fuzzy matching
-        identifier_lower = identifier.lower().strip()
-        exact_matches = []
-        partial_matches = []
-
-        for series in all_series:
-            series_title = series.get("title", "").lower()
-
-            # Exact match (case insensitive)
-            if series_title == identifier_lower:
-                exact_matches.append(series)
-            # Partial match (identifier is contained in title)
-            elif identifier_lower in series_title:
-                partial_matches.append(series)
-
-        # Return exact matches first, then partial matches
-        return exact_matches + partial_matches
+        return self.series_service.find_series_by_identifier(identifier)
 
     def get_series_detailed_info(
         self,

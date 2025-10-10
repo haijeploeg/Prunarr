@@ -22,6 +22,7 @@ from prunarr.utils.formatters import (
     safe_str,
 )
 from prunarr.utils.parsers import make_episode_key, parse_episode_key
+from prunarr.utils.table_helpers import format_movie_table_row, format_series_table_row
 
 __all__ = [
     # Formatters
@@ -41,4 +42,7 @@ __all__ = [
     # Parsers
     "make_episode_key",
     "parse_episode_key",
+    # Table helpers
+    "format_movie_table_row",
+    "format_series_table_row",
 ]

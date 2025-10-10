@@ -8,7 +8,7 @@ YAML file and environment variable configuration methods.
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import mock_open, patch
+from unittest.mock import patch
 
 import pytest
 import yaml

@@ -243,3 +243,32 @@ def validate_log_level(log_level: str) -> str:
         raise ValueError(f"log_level must be one of {allowed_levels}, got '{log_level}'")
 
     return normalized
+
+
+def validate_streaming_filters(
+    on_streaming: bool, not_on_streaming: bool, settings, logger
+) -> None:
+    """
+    Validate streaming filter options.
+
+    Args:
+        on_streaming: Filter for items on streaming services
+        not_on_streaming: Filter for items not on streaming services
+        settings: Settings object with streaming configuration
+        logger: Logger instance for error messages
+
+    Raises:
+        typer.Exit: If both filters are used together or streaming is not enabled
+    """
+    # Check mutual exclusivity
+    if on_streaming and not_on_streaming:
+        logger.error("Cannot use both --on-streaming and --not-on-streaming filters together")
+        raise typer.Exit(1)
+
+    # Check if streaming is configured
+    if (on_streaming or not_on_streaming) and not settings.streaming_enabled:
+        logger.error(
+            "Streaming filters require streaming_enabled=true in configuration. "
+            "Please configure streaming_enabled, streaming_locale, and streaming_providers in your config."
+        )
+        raise typer.Exit(1)

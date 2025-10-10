@@ -6,7 +6,7 @@ domain objects and datetime values to JSON-compatible formats.
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 
 def prepare_datetime_for_json(dt: Optional[datetime]) -> Optional[str]:

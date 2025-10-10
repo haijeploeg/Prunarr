@@ -1,10 +1,14 @@
 name: CI
+permissions:
+  contents: read
 
 on:
   push:
-    branches: [ main, develop ]
+    # Run on every push to any branch
+    branches: [ "**" ]
   pull_request:
-    branches: [ main, develop ]
+    # Run on pull requests targeting main
+    branches: [ main ]
 
 jobs:
   test:
@@ -57,6 +61,10 @@ jobs:
       run: |
         flake8 prunarr/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
         flake8 prunarr/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=100 --statistics
+
+    - name: Check for unused imports with autoflake
+      run: |
+        autoflake --check --remove-all-unused-imports --remove-unused-variables -r prunarr/ tests/
 
     - name: Check formatting with black
       run: |

@@ -296,8 +296,8 @@ class TestPrunArrIntegration:
         )
         prunarr = PrunArr(settings)
 
-        # Mock get_movies_with_watch_status to return test data
-        prunarr.get_movies_with_watch_status = Mock(
+        # Mock the MovieService method since that's what's actually called
+        prunarr.movie_service.get_movies_with_watch_status = Mock(
             return_value=[
                 {"watch_status": "watched", "days_since_watched": 70, "title": "Movie 1"},
                 {"watch_status": "watched", "days_since_watched": 50, "title": "Movie 2"},
@@ -474,7 +474,7 @@ class TestPrunArrIntegration:
         )
         prunarr = PrunArr(settings)
 
-        prunarr.get_all_sonarr_series = Mock(
+        prunarr.series_service.get_all_series = Mock(
             return_value=[
                 {"id": 123, "title": "Series 1"},
                 {"id": 456, "title": "Series 2"},
@@ -500,7 +500,7 @@ class TestPrunArrIntegration:
         )
         prunarr = PrunArr(settings)
 
-        prunarr.get_all_sonarr_series = Mock(
+        prunarr.series_service.get_all_series = Mock(
             return_value=[
                 {"id": 1, "title": "Breaking Bad"},
                 {"id": 2, "title": "Better Call Saul"},
@@ -562,10 +562,16 @@ class TestCriticalMovieLogic:
                 "movieFile": {"size": 512 * 1024 * 1024},
             },
         ]
-        mock_radarr_instance.get_tag.side_effect = [
-            {"id": 1, "label": "1 - alice"},
-            {"id": 2, "label": "2 - bob"},
-        ]
+
+        # Mock get_tag to return appropriate response based on tag_id
+        def mock_get_tag(tag_id):
+            tag_map = {
+                1: {"id": 1, "label": "1 - alice"},
+                2: {"id": 2, "label": "2 - bob"},
+            }
+            return tag_map.get(tag_id, {"id": tag_id, "label": f"Tag {tag_id}"})
+
+        mock_radarr_instance.get_tag.side_effect = mock_get_tag
 
         # Mock Tautulli watch history
         mock_tautulli_instance = mock_tautulli.return_value
@@ -623,8 +629,8 @@ class TestCriticalMovieLogic:
         )
         prunarr = PrunArr(settings)
 
-        # Mock: Movies with different watch statuses
-        prunarr.get_movies_with_watch_status = Mock(
+        # Mock the MovieService method since that's what's actually called
+        prunarr.movie_service.get_movies_with_watch_status = Mock(
             return_value=[
                 # Should be removed (watched by requester, 70 days ago)
                 {"id": 1, "watch_status": "watched", "days_since_watched": 70, "user": "alice"},

@@ -23,6 +23,7 @@ def create_movies_table(title: str = "Radarr Movies", include_streaming: bool = 
     table.add_column("Title", style="bright_white")
     table.add_column("Year", style="yellow")
     table.add_column("User", style="blue")
+    table.add_column("Tags", style="bright_cyan")
     table.add_column("Watch Status")
     table.add_column("Watched By", style="cyan")
     table.add_column("Days Ago", style="green")
@@ -48,6 +49,7 @@ def create_series_table(title: str = "Sonarr TV Series", include_streaming: bool
     table.add_column("ID", style="cyan")
     table.add_column("Title", style="bright_white")
     table.add_column("User", style="blue")
+    table.add_column("Tags", style="bright_cyan")
     table.add_column("Status")
     table.add_column("Episodes", style="cyan")
     table.add_column("Progress", style="green")
@@ -56,39 +58,7 @@ def create_series_table(title: str = "Sonarr TV Series", include_streaming: bool
     if include_streaming:
         table.add_column("Streaming", style="bright_magenta")
     table.add_column("Last Watched", style="dim")
-    return table
-
-
-def create_series_removal_table(title: str, mode: str = "series") -> Table:
-    """
-    Create table for series removal preview.
-
-    Args:
-        title: Table title
-        mode: Removal mode ("series" or "season")
-
-    Returns:
-        Configured Rich Table for series removal preview
-    """
-    table = Table(title=title)
-
-    if mode == "series":
-        table.add_column("ID", style="cyan")
-        table.add_column("Title", style="bright_white")
-        table.add_column("User", style="blue")
-        table.add_column("Episodes", style="green")
-        table.add_column("Progress", style="green")
-        table.add_column("Last Watched", style="dim")
-        table.add_column("Days Ago", style="yellow")
-    else:  # season mode
-        table.add_column("ID", style="cyan")
-        table.add_column("Title", style="bright_white")
-        table.add_column("Season", style="magenta")
-        table.add_column("User", style="blue")
-        table.add_column("Episodes", style="green")
-        table.add_column("Last Watched", style="dim")
-        table.add_column("Days Ago", style="yellow")
-
+    table.add_column("Days Ago", style="yellow")
     return table
 
 

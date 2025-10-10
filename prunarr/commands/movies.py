@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import typer
 from rich.console import Console
+from rich.progress import BarColumn, Progress, SpinnerColumn, TaskProgressColumn, TextColumn
 
 from prunarr.config import Settings
 from prunarr.justwatch import JustWatchClient
@@ -20,12 +21,21 @@ from prunarr.utils import (
     format_date_or_default,
     format_file_size,
     format_movie_watch_status,
-    safe_get,
+)
+from prunarr.utils.filters import (
+    apply_streaming_filter,
+    filter_by_excluded_tags,
+    filter_by_tags,
 )
 from prunarr.utils.parsers import parse_file_size, parse_iso_datetime
 from prunarr.utils.serializers import prepare_datetime_for_json, prepare_movie_for_json
-from prunarr.utils.tables import create_movies_table
-from prunarr.utils.validators import validate_output_format, validate_sort_option
+from prunarr.utils.table_helpers import format_movie_table_row
+from prunarr.utils.tables import create_history_details_table, create_movies_table
+from prunarr.utils.validators import (
+    validate_output_format,
+    validate_sort_option,
+    validate_streaming_filters,
+)
 
 console = Console()
 app = typer.Typer(help="Manage movies in Radarr.", rich_markup_mode="rich")
@@ -253,6 +263,15 @@ def list_movies(
     include_untagged: bool = typer.Option(
         True, "--include-untagged/--exclude-untagged", help="Include movies without user tags"
     ),
+    tags: Optional[List[str]] = typer.Option(
+        None, "--tag", help="Include only movies with this tag (can specify multiple times)"
+    ),
+    exclude_tags: Optional[List[str]] = typer.Option(
+        None, "--exclude-tag", help="Exclude movies with this tag (can specify multiple times)"
+    ),
+    tag_match_all: bool = typer.Option(
+        False, "--tag-match-all", help="Require ALL specified tags instead of ANY"
+    ),
     days_watched: Optional[int] = typer.Option(
         None, "--days-watched", "-d", help="Show movies watched more than X days ago"
     ),
@@ -354,28 +373,18 @@ def list_movies(
     # Validate output format using shared validator
     validate_output_format(output, logger)
 
-    # Validate streaming filter mutual exclusivity
-    if on_streaming and not_on_streaming:
-        logger.error("Cannot use both --on-streaming and --not-on-streaming filters together")
-        raise typer.Exit(1)
+    # Validate streaming filters using centralized function
+    validate_streaming_filters(on_streaming, not_on_streaming, settings, logger)
 
     # Validate and parse options
     sort_by, min_filesize_bytes = validate_and_parse_options(sort_by, min_filesize, logger)
-
-    # Check if streaming filters are requested but not configured
-    if (on_streaming or not_on_streaming) and not settings.streaming_enabled:
-        logger.error(
-            "Streaming filters require streaming_enabled=true in configuration. "
-            "Please configure streaming_enabled, streaming_locale, and streaming_providers in your config."
-        )
-        raise typer.Exit(1)
 
     logger.info("Retrieving movies from Radarr with watch status...")
     prunarr = PrunArr(settings, debug=debug)
 
     try:
-        # Always check streaming if enabled in config
-        check_streaming = settings.streaming_enabled
+        # Always check streaming if enabled in config or if filters are being used
+        check_streaming = settings.streaming_enabled or on_streaming or not_on_streaming
 
         # Get movies with watch status (and populate streaming cache if needed)
         movies = prunarr.get_movies_with_watch_status(
@@ -387,6 +396,18 @@ def list_movies(
         # Check and log cache status
         if prunarr.cache_manager:
             prunarr.check_and_log_cache_status(prunarr.cache_manager.KEY_RADARR_MOVIES, logger)
+
+        # Populate streaming data if enabled and not filtering
+        if check_streaming and not (on_streaming or not_on_streaming):
+            from prunarr.utils.filters import populate_streaming_data
+
+            movies = populate_streaming_data(
+                items=movies,
+                media_type="movie",
+                settings=settings,
+                cache_manager=prunarr.cache_manager,
+                logger=logger,
+            )
 
         # Apply filtering using shared function
         filtered_movies = apply_movie_filters(
@@ -400,41 +421,20 @@ def list_movies(
             remove_mode=False,
         )
 
-        # Apply streaming filters if requested - now using cached data!
-        if on_streaming or not_on_streaming:
-            from prunarr.services.streaming_checker import StreamingChecker
+        # Apply streaming filters if requested - using centralized utility
+        filtered_movies = apply_streaming_filter(
+            items=filtered_movies,
+            on_streaming=on_streaming,
+            not_on_streaming=not_on_streaming,
+            media_type="movie",
+            settings=settings,
+            cache_manager=prunarr.cache_manager,
+            logger=logger,
+        )
 
-            logger.info("Filtering by streaming availability (using cached data)...")
-            streaming_checker = StreamingChecker(
-                locale=settings.streaming_locale,
-                providers=settings.streaming_providers,
-                cache_manager=prunarr.cache_manager,
-                logger=logger,
-            )
-
-            streaming_filtered = []
-            for movie in filtered_movies:
-                # Try to use cached streaming_available field first
-                is_available = movie.get("streaming_available")
-
-                # If not in cache, check via API (and cache the result)
-                if is_available is None:
-                    is_available = streaming_checker.is_on_streaming(
-                        media_type="movie",
-                        title=movie.get("title", ""),
-                        year=movie.get("year"),
-                        imdb_id=movie.get("imdb_id"),
-                    )
-
-                # Apply the appropriate filter
-                if on_streaming and is_available:
-                    streaming_filtered.append(movie)
-                elif not_on_streaming and not is_available:
-                    streaming_filtered.append(movie)
-
-            filtered_movies = streaming_filtered
-            filter_type = "on streaming" if on_streaming else "not on streaming"
-            logger.info(f"After streaming filter: {len(filtered_movies)} movies {filter_type}")
+        # Apply tag filters
+        filtered_movies = filter_by_tags(filtered_movies, tags, match_all=tag_match_all)
+        filtered_movies = filter_by_excluded_tags(filtered_movies, exclude_tags)
 
         # Apply sorting
         filtered_movies = sort_movies(filtered_movies, sort_by, sort_desc)
@@ -474,50 +474,12 @@ def list_movies(
                 )
             print(json.dumps(json_output, indent=2))
         else:
-            # Create Rich table using factory - always include streaming column
-            table = create_movies_table(include_streaming=True)
+            # Create Rich table using factory - include streaming column if enabled
+            table = create_movies_table(include_streaming=check_streaming)
 
             # Populate table
             for movie in filtered_movies:
-                # Format user display
-                user_display = movie.get("user") or "[dim]Untagged[/dim]"
-
-                # Format days since watched
-                days_ago = (
-                    str(movie.get("days_since_watched", ""))
-                    if movie.get("days_since_watched") is not None
-                    else "N/A"
-                )
-
-                # Format watched by (handle multiple users)
-                watched_by = movie.get("watched_by") or "N/A"
-
-                # Format added date
-                added_date = format_date_or_default(parse_iso_datetime(movie.get("added")))
-
-                # Build row data
-                row_data = [
-                    safe_get(movie, "title"),
-                    safe_get(movie, "year"),
-                    user_display,
-                    format_movie_watch_status(movie.get("watch_status", "unknown")),
-                    watched_by,
-                    days_ago,
-                    format_file_size(movie.get("file_size", 0)),
-                ]
-
-                # Add streaming info - always show
-                streaming_available = movie.get("streaming_available")
-                if streaming_available is True:
-                    streaming_display = "✓"
-                elif streaming_available is False:
-                    streaming_display = "✗"
-                else:
-                    streaming_display = "-"  # Not checked yet
-                row_data.append(streaming_display)
-
-                row_data.append(added_date)
-                table.add_row(*row_data)
+                table.add_row(*format_movie_table_row(movie, include_streaming=check_streaming))
 
             console.print(table)
 
@@ -555,6 +517,15 @@ def remove_movies(
     username: Optional[str] = typer.Option(
         None, "--username", "-u", help="Filter by specific username"
     ),
+    watched_only: bool = typer.Option(
+        True, "--watched/--no-watched", "-w", help="Remove only watched movies (default: True)"
+    ),
+    unwatched_only: bool = typer.Option(False, "--unwatched", help="Remove only unwatched movies"),
+    watched_by_other_only: bool = typer.Option(
+        False,
+        "--watched-by-other",
+        help="Remove only movies watched by someone other than the requester",
+    ),
     min_filesize: Optional[str] = typer.Option(
         None, "--min-filesize", help="Minimum file size (e.g., '1GB', '500MB', '2.5GB')"
     ),
@@ -575,6 +546,17 @@ def remove_movies(
         "--include-untagged/--exclude-untagged",
         help="Include movies without user tags (default: exclude untagged)",
     ),
+    tags: Optional[List[str]] = typer.Option(
+        None, "--tag", help="Remove only movies with this tag (can specify multiple times)"
+    ),
+    exclude_tags: Optional[List[str]] = typer.Option(
+        None,
+        "--exclude-tag",
+        help="Exclude movies with this tag from removal (can specify multiple times)",
+    ),
+    tag_match_all: bool = typer.Option(
+        False, "--tag-match-all", help="Require ALL specified tags instead of ANY"
+    ),
     on_streaming: bool = typer.Option(
         False,
         "--on-streaming",
@@ -583,24 +565,40 @@ def remove_movies(
     not_on_streaming: bool = typer.Option(
         False, "--not-on-streaming", help="Remove ONLY movies NOT available on streaming providers"
     ),
+    delete_files: bool = typer.Option(
+        True,
+        "--delete-files/--no-delete-files",
+        help="Delete movie files from disk (default: True)",
+    ),
+    add_to_exclusion: bool = typer.Option(
+        False,
+        "--add-to-exclusion",
+        help="Add removed movies to Radarr exclusion list (prevents re-adding)",
+    ),
 ):
     """
-    [bold cyan]Remove watched movies with advanced filtering and confirmation.[/bold cyan]
+    [bold cyan]Remove movies with advanced filtering and confirmation.[/bold cyan]
 
-    Identifies and removes movies that have been watched by their requesting user
-    for more than the specified number of days. Supports the same filtering and
-    sorting options as the list command for precise control.
+    Identifies and removes movies based on watch status and other criteria.
+    Supports the same filtering and sorting options as the list command for precise control.
 
     [bold yellow]Safety features:[/bold yellow]
         • [cyan]--dry-run[/cyan] - preview what would be removed
         • [cyan]--force[/cyan] - skip confirmation prompts
-        • Only removes movies watched by the same user who requested them
+        • [cyan]--delete-files[/cyan] - control whether files are deleted (default: True)
+        • [cyan]--add-to-exclusion[/cyan] - add to Radarr exclusion list to prevent re-adding
         • Interactive confirmation by default
-        • Skips movies without user tags
+        • Defaults to only removing watched movies
 
-    [bold yellow]Filtering options:[/bold yellow]
+    [bold yellow]Watch status filtering:[/bold yellow]
+        • [green]--watched[/green] - remove only watched movies (default: True)
+        • [green]--unwatched[/green] - remove only unwatched movies
+        • [green]--watched-by-other[/green] - remove only movies watched by someone other than requester
+        • [green]--no-watched[/green] - disable default watched-only filter
+
+    [bold yellow]Other filtering options:[/bold yellow]
         • [green]--username[/green] - filter by specific user
-        • [green]--days-watched[/green] - movies watched X+ days ago
+        • [green]--days-watched[/green] - movies watched X+ days ago (default: 60)
         • [green]--min-filesize[/green] - minimum file size (e.g., '1GB', '500MB')
         • [green]--include-untagged/--exclude-untagged[/green] - control untagged movies
         • [green]--on-streaming[/green] - remove ONLY movies available on streaming providers
@@ -614,6 +612,12 @@ def remove_movies(
     [bold yellow]Examples:[/bold yellow]
         [dim]# Preview removal (safe dry run)[/dim]
         prunarr movies remove [green]--dry-run[/green]
+
+        [dim]# Remove watched movies (default behavior)[/dim]
+        prunarr movies remove [green]--watched[/green]
+
+        [dim]# Remove unwatched movies[/dim]
+        prunarr movies remove [green]--unwatched[/green]
 
         [dim]# Remove old large movies for specific user[/dim]
         prunarr movies remove [green]--username[/green] "john" [green]--min-filesize[/green] 2GB [green]--days-watched[/green] 90
@@ -642,21 +646,11 @@ def remove_movies(
 
     logger = get_logger("movies", debug=debug, log_level=settings.log_level)
 
-    # Validate streaming filter mutual exclusivity
-    if on_streaming and not_on_streaming:
-        logger.error("Cannot use both --on-streaming and --not-on-streaming filters together")
-        raise typer.Exit(1)
+    # Validate streaming filters using centralized function
+    validate_streaming_filters(on_streaming, not_on_streaming, settings, logger)
 
     # Validate and parse options
     sort_by, min_filesize_bytes = validate_and_parse_options(sort_by, min_filesize, logger)
-
-    # Check if streaming filters are requested but not configured
-    if (on_streaming or not_on_streaming) and not settings.streaming_enabled:
-        logger.error(
-            "Streaming filters require streaming_enabled=true in configuration. "
-            "Please configure streaming_enabled, streaming_locale, and streaming_providers in your config."
-        )
-        raise typer.Exit(1)
 
     # Fix the sort order logic (--sort-asc means ascending, default is descending)
     sort_desc_actual = not sort_desc
@@ -682,47 +676,29 @@ def remove_movies(
         # Apply filtering using shared function (remove mode)
         movies_to_remove = apply_movie_filters(
             movies=all_movies,
+            watched_only=watched_only,
+            unwatched_only=unwatched_only,
+            watched_by_other_only=watched_by_other_only,
             days_watched=days_watched,
             min_filesize_bytes=min_filesize_bytes,
             include_untagged=include_untagged,
-            remove_mode=True,
+            remove_mode=False,  # Use regular filtering, not hardcoded remove mode
         )
 
-        # Apply streaming filters if requested - now using cached data!
-        if on_streaming or not_on_streaming:
-            from prunarr.services.streaming_checker import StreamingChecker
+        # Apply streaming filters if requested - using centralized utility
+        movies_to_remove = apply_streaming_filter(
+            items=movies_to_remove,
+            on_streaming=on_streaming,
+            not_on_streaming=not_on_streaming,
+            media_type="movie",
+            settings=settings,
+            cache_manager=prunarr.cache_manager,
+            logger=logger,
+        )
 
-            logger.info("Filtering by streaming availability (using cached data)...")
-            streaming_checker = StreamingChecker(
-                locale=settings.streaming_locale,
-                providers=settings.streaming_providers,
-                cache_manager=prunarr.cache_manager,
-                logger=logger,
-            )
-
-            streaming_filtered = []
-            for movie in movies_to_remove:
-                # Try to use cached streaming_available field first
-                is_available = movie.get("streaming_available")
-
-                # If not in cache, check via API (and cache the result)
-                if is_available is None:
-                    is_available = streaming_checker.is_on_streaming(
-                        media_type="movie",
-                        title=movie.get("title", ""),
-                        year=movie.get("year"),
-                        imdb_id=movie.get("imdb_id"),
-                    )
-
-                # Apply the appropriate filter
-                if on_streaming and is_available:
-                    streaming_filtered.append(movie)
-                elif not_on_streaming and not is_available:
-                    streaming_filtered.append(movie)
-
-            movies_to_remove = streaming_filtered
-            filter_type = "on streaming" if on_streaming else "not on streaming"
-            logger.info(f"After streaming filter: {len(movies_to_remove)} movies {filter_type}")
+        # Apply tag filters
+        movies_to_remove = filter_by_tags(movies_to_remove, tags, match_all=tag_match_all)
+        movies_to_remove = filter_by_excluded_tags(movies_to_remove, exclude_tags)
 
         # Apply sorting
         movies_to_remove = sort_movies(movies_to_remove, sort_by, sort_desc_actual)
@@ -740,25 +716,32 @@ def remove_movies(
 
         # Create table showing what would be removed using factory
         title = "Movies to Remove (Dry Run)" if dry_run else "Movies to Remove"
-        table = create_movies_table(title=title)
-
-        # Remove "Added" column as it's not needed for removal preview
-        # Note: We'll create rows without the "Added" value
+        table = create_movies_table(title=title, include_streaming=need_streaming)
 
         for movie in movies_to_remove:
-            table.add_row(
-                safe_get(movie, "title"),
-                safe_get(movie, "year"),
-                safe_get(movie, "user"),
-                safe_get(movie, "watched_by"),
-                safe_get(movie, "days_since_watched"),
-                format_file_size(movie.get("file_size", 0)),
-                "",  # Empty "Added" column since it's not needed for removal
-            )
+            table.add_row(*format_movie_table_row(movie, include_streaming=need_streaming))
 
         console.print(table)
 
+        # Show summary information
         if dry_run:
+            console.print(
+                f"\n[bold cyan]Total movies to remove: {len(movies_to_remove)}[/bold cyan]"
+            )
+            if delete_files:
+                total_size_bytes = sum(movie.get("file_size", 0) for movie in movies_to_remove)
+                total_size_formatted = format_file_size(total_size_bytes)
+                console.print(
+                    f"[bold yellow]Total storage to be freed: {total_size_formatted}[/bold yellow]"
+                )
+            else:
+                console.print(
+                    f"[bold yellow]Note: Files will NOT be deleted (--no-delete-files)[/bold yellow]"
+                )
+                console.print(
+                    f"[dim]Movies will be removed from Radarr but files remain on disk[/dim]"
+                )
+
             logger.info(
                 f"[DRY RUN] Use without --dry-run to actually remove these {len(movies_to_remove)} movies"
             )
@@ -768,6 +751,9 @@ def remove_movies(
         if debug:
             filter_info = create_debug_filter_info(
                 username=username,
+                watched_only=watched_only,
+                unwatched_only=unwatched_only,
+                watched_by_other_only=watched_by_other_only,
                 days_watched=days_watched,
                 min_filesize=min_filesize,
                 include_untagged=include_untagged,
@@ -779,14 +765,37 @@ def remove_movies(
 
         # Confirmation prompt (unless force is used)
         if not force:
-            console.print(
-                f"\n[bold red]⚠️  WARNING: This will permanently delete {len(movies_to_remove)} movies and their files![/bold red]"
-            )
+            if delete_files:
+                total_size_bytes = sum(movie.get("file_size", 0) for movie in movies_to_remove)
+                total_size_formatted = format_file_size(total_size_bytes)
+                console.print(
+                    f"\n[bold red]⚠️  WARNING: This will permanently delete {len(movies_to_remove)} movies and their files![/bold red]"
+                )
+                console.print(
+                    f"\n[bold yellow]🗑️  Total storage to be freed: {total_size_formatted}[/bold yellow]\n"
+                )
+            else:
+                console.print(
+                    f"\n[bold yellow]⚠️  NOTE: {len(movies_to_remove)} movies will be removed from Radarr but files will remain on disk[/bold yellow]"
+                )
+                console.print(f"[dim]No storage will be freed (--no-delete-files is set)[/dim]\n")
 
             # Show summary of applied filters
             filter_summary = []
             if username:
                 filter_summary.append(f"user: {username}")
+
+            # Watch status filters
+            watch_filters = []
+            if watched_only:
+                watch_filters.append("watched")
+            if unwatched_only:
+                watch_filters.append("unwatched")
+            if watched_by_other_only:
+                watch_filters.append("watched-by-other")
+            if watch_filters:
+                filter_summary.append(f"status: {', '.join(watch_filters)}")
+
             filter_summary.append(f"days watched: {days_watched}+")
             if min_filesize:
                 filter_summary.append(f"min size: {min_filesize}")
@@ -799,24 +808,42 @@ def remove_movies(
                 logger.info("Removal cancelled by user")
                 return
 
-        # Actually remove the movies
+        # Actually remove the movies with progress bar
         removed_count = 0
-        for movie in movies_to_remove:
-            movie_id = movie.get("id")
-            title = movie.get("title", "Unknown")
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task(
+                f"Removing {len(movies_to_remove)} movies...", total=len(movies_to_remove)
+            )
 
-            if debug:
-                logger.debug(f"Removing movie: {title} (ID: {movie_id})")
+            for movie in movies_to_remove:
+                movie_id = movie.get("id")
+                title = movie.get("title", "Unknown")
 
-            try:
-                success = prunarr.radarr.delete_movie(movie_id, delete_files=True)
-                if success:
-                    removed_count += 1
-                    logger.info(f"Removed: {title}")
-                else:
-                    logger.warning(f"Failed to remove: {title}")
-            except Exception as e:
-                logger.error(f"Error removing {title}: {str(e)}")
+                progress.update(task, description=f"Removing: {title}")
+
+                if debug:
+                    logger.debug(f"Removing movie: {title} (ID: {movie_id})")
+
+                try:
+                    success = prunarr.radarr.delete_movie(
+                        movie_id, delete_files=delete_files, add_exclusion=add_to_exclusion
+                    )
+                    if success:
+                        removed_count += 1
+                        if debug:
+                            logger.info(f"Removed: {title}")
+                    else:
+                        logger.warning(f"Failed to remove: {title}")
+                except Exception as e:
+                    logger.error(f"Error removing {title}: {str(e)}")
+
+                progress.advance(task)
 
         logger.info(f"Successfully removed {removed_count} out of {len(movies_to_remove)} movies")
 
@@ -901,8 +928,6 @@ def get_movie_details(
         movie_file = full_movie.get("movieFile", {})
 
         # Get all streaming providers (not filtered by config)
-        from prunarr.services.streaming_checker import StreamingChecker
-
         all_providers = []
         if settings.streaming_enabled:
             logger.info("Checking streaming availability across all providers...")
@@ -958,8 +983,6 @@ def get_movie_details(
             )
 
             # Create details table
-            from prunarr.utils.tables import create_history_details_table
-
             table = create_history_details_table(movie.get("id", 0))
             table.title = None
 

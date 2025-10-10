@@ -16,7 +16,6 @@ from rich.table import Table
 from prunarr.config import Settings
 from prunarr.justwatch import JustWatchClient
 from prunarr.logger import get_logger
-from prunarr.services.streaming_checker import StreamingChecker
 from prunarr.utils.validators import validate_output_format
 
 console = Console()

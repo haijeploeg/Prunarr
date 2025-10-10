@@ -7,8 +7,6 @@ episode management, file tracking, and comprehensive error handling.
 
 from unittest.mock import Mock, patch
 
-import pytest
-
 from prunarr.sonarr import SonarrAPI
 
 
