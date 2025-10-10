@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/haijeploeg/prunarr#readme
+    about: Check the README for usage instructions and examples
+  - name: 💬 Discussions
+    url: https://github.com/haijeploeg/prunarr/discussions
+    about: Ask questions and discuss ideas with the community
