@@ -6,7 +6,7 @@ on:
       - 'v*.*.*'  # Triggers on version tags like v1.0.0, v1.2.3, etc.
 
 permissions:
-  contents: read
+  contents: write  # Required for creating GitHub releases
   id-token: write  # Required for PyPI trusted publishing
 
 jobs:
@@ -39,6 +39,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for changelog generation
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -55,6 +57,37 @@ jobs:
 
     - name: Check package with twine
       run: twine check dist/*
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        CURRENT_TAG=${GITHUB_REF#refs/tags/}
+
+        # Create installation instructions
+        echo "## 📦 Installation" > CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo '```bash' >> CHANGELOG.md
+        echo "pip install prunarr==${CURRENT_TAG#v}" >> CHANGELOG.md
+        echo '```' >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+
+        if [ -n "$PREVIOUS_TAG" ]; then
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...${CURRENT_TAG}" >> CHANGELOG.md
+        else
+          echo "🎉 **Initial Release** - First stable release of PrunArr!" >> CHANGELOG.md
+        fi
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        body_path: CHANGELOG.md
+        files: |
+          dist/*.whl
+          dist/*.tar.gz
+        draft: false
+        prerelease: false
+        generate_release_notes: true
 
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
