@@ -10,8 +10,10 @@ class Provider(BaseModel):
     """Streaming provider information."""
 
     id: int = Field(description="Provider ID")
-    technical_name: str = Field(description="Technical name (e.g., 'nfx', 'amp')")
-    short_name: str = Field(description="Short display name")
+    technical_name: str = Field(
+        description="Technical name (e.g., 'netflix', 'amazonprime', 'disneyplus')"
+    )
+    short_name: str = Field(description="Short code (e.g., 'nfx', 'amp', 'dnp')")
     clear_name: str = Field(description="Full provider name")
     monetization_types: List[str] = Field(
         default_factory=list, description="Types of offers (FLATRATE, RENT, BUY, etc.)"

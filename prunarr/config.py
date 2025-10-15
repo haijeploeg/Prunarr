@@ -101,7 +101,7 @@ class Settings(BaseModel):
     )
     streaming_providers: list[str] = Field(
         default_factory=list,
-        description="List of streaming provider technical names (e.g., nfx, amp, dnp)",
+        description="List of streaming provider technical names (e.g., netflix, amazonprime, disneyplus)",
     )
     cache_ttl_streaming: int = Field(
         default=86400,
