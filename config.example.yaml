@@ -51,18 +51,18 @@ log_level: ERROR                      # Log level: DEBUG, INFO, WARNING, ERROR (
 streaming_enabled: false              # Enable streaming provider checks (default: false)
 streaming_locale: "en_US"             # Locale for JustWatch queries (language_COUNTRY format)
 streaming_providers:                  # List of streaming provider technical names
-  - "nfx"                             # Netflix
-  - "amp"                             # Amazon Prime Video
-  - "dnp"                             # Disney+
-  - "hlu"                             # Hulu
+  - "netflix"                         # Netflix
+  - "amazonprime"                     # Amazon Prime Video
+  - "disneyplus"                      # Disney+
+  - "hulu"                            # Hulu
   # Add more providers as needed - use "prunarr providers list" to see all available
 
 # Cache TTL for streaming data
 cache_ttl_streaming: 86400            # Streaming availability cache (default: 24 hours)
 
 # Common Provider Technical Names (use `prunarr providers list` to see all):
-# - netflix: Netflix                    - hbomax: HBO Max
-# - amazonprimevideo: Amazon Prime      - appletv: Apple TV+
+# - netflix: Netflix                    - max: HBO Max
+# - amazonprime: Amazon Prime           - appletvplus: Apple TV+
 # - disneyplus: Disney+                 - paramountplus: Paramount+
 # - hulu: Hulu                          - showtime: Showtime
 # - starz: Starz                        - crunchyroll: Crunchyroll

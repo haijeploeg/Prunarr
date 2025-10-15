@@ -84,10 +84,10 @@ cache_ttl_history: 300      # 5 minutes
 streaming_enabled: false    # Set to true to enable streaming provider checks
 streaming_locale: "en_US"   # Locale for JustWatch (language_COUNTRY format)
 streaming_providers:        # List of provider technical names
-  - "nfx"                   # Netflix
-  - "amp"                   # Amazon Prime Video
-  - "dnp"                   # Disney+
-  - "hlu"                   # Hulu
+  - "netflix"               # Netflix
+  - "amazonprime"           # Amazon Prime Video
+  - "disneyplus"            # Disney+
+  - "hulu"                  # Hulu
 cache_ttl_streaming: 86400  # 24 hours
 ```
 
@@ -184,21 +184,21 @@ Enable streaming provider checks in your `config.yaml`:
 streaming_enabled: true
 streaming_locale: "en_US"  # Your region (language_COUNTRY)
 streaming_providers:
-  - "nfx"                  # Netflix
-  - "amp"                  # Amazon Prime Video
-  - "dnp"                  # Disney+
-  - "hlu"                  # Hulu
+  - "netflix"              # Netflix
+  - "amazonprime"          # Amazon Prime Video
+  - "disneyplus"           # Disney+
+  - "hulu"                 # Hulu
 ```
 
 **Common Provider Technical Names:**
-- `nfx` - Netflix
-- `amp` - Amazon Prime Video (Amazon)
-- `dnp` - Disney+
-- `hlu` - Hulu
-- `hbm` - HBO Max
-- `atp` - Apple TV+
-- `pmp` - Paramount+
-- `sho` - Showtime
+- `netflix` - Netflix
+- `amazonprime` - Amazon Prime Video
+- `disneyplus` - Disney Plus
+- `hulu` - Hulu
+- `max` - HBO Max
+- `appletvplus` - Apple TV+
+- `paramountplus` - Paramount+
+- `showtime` - Showtime
 
 **Note:** Use `prunarr providers list` to see all available provider technical names for your locale.
 
