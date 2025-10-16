@@ -1,801 +1,362 @@
 # PrunArr
 
-A sophisticated Python CLI tool that automates intelligent cleanup of movies and TV shows in Radarr and Sonarr based on watched status from Tautulli. PrunArr provides advanced filtering, comprehensive filesize tracking, and user-based management with safety-first design.
+**Automatically clean up your Radarr and Sonarr libraries based on what you've actually watched in Plex/Jellyfin (via Tautulli).**
 
-## What is PrunArr?
+Stop manually managing your media library. PrunArr removes watched content after a configurable period, checks streaming availability, and gives you complete control over what stays and what goes.
 
-PrunArr helps you maintain clean, organized media libraries by automatically removing content that has been watched for a configurable period. It provides deep integration with your media stack:
+[![PyPI version](https://badge.fury.io/py/prunarr.svg)](https://pypi.org/project/prunarr/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-- **Radarr/Sonarr**: Advanced media library management with tag-based user tracking
-- **Tautulli**: Comprehensive watch history analysis and user correlation
-- **Rich CLI Interface**: Beautiful tables, progress indicators, and detailed feedback
+---
 
-**Key Features:**
-- 🎯 **User-based Content Management**: Associates media with specific users through intelligent tag parsing
-- 📊 **Advanced Watch Status Analysis**: Cross-references watch history across multiple platforms
-- 💾 **Comprehensive Filesize Tracking**: Byte-accurate monitoring from individual episodes to entire series
-- 🔍 **Multi-dimensional Filtering**: Filter by user, status, date, size, and custom criteria
-- 🛡️ **Safety-first Design**: Multiple confirmation steps, dry-run modes, and detailed previews
-- 🎨 **Rich Console Interface**: Color-coded tables, progress bars, and intuitive navigation
-- ⚡ **Performance Caching**: Intelligent caching system minimizes API calls and improves response times
-- 📝 **Configurable Logging**: Priority-based log levels (DEBUG, INFO, WARNING, ERROR) with detailed tracing
-- 🔄 **JSON Output Support**: Machine-readable output for automation and scripting alongside human-friendly tables
-
-## Installation
-
-### Prerequisites
-
-- Python 3.9 or higher
-- Access to Radarr and/or Sonarr instances
-- Access to a Tautulli instance
-- API keys for all services
-
-### Install from Source
-
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd prunarr
-```
-
-2. Create a virtual environment:
-```bash
-python -m venv env
-source env/bin/activate  # On Windows: env\Scripts\activate
-```
-
-3. Install the package:
-```bash
-pip install -e .
-```
-
-## Configuration
-
-PrunArr supports flexible configuration through YAML files or environment variables with comprehensive validation and detailed error reporting.
-
-### Method 1: YAML Configuration File (Recommended)
-
-Create a `config.yaml` file with your API credentials:
-
-```yaml
-# Required API Credentials
-radarr_api_key: "your-radarr-api-key"
-radarr_url: "https://radarr.yourdomain.com"
-sonarr_api_key: "your-sonarr-api-key"
-sonarr_url: "https://sonarr.yourdomain.com"
-tautulli_api_key: "your-tautulli-api-key"
-tautulli_url: "https://tautulli.yourdomain.com"
-
-# Optional: Customize user tag pattern (default works for most setups)
-user_tag_regex: "^\\d+ - (.+)$"
-
-# Logging Configuration
-log_level: ERROR  # DEBUG, INFO, WARNING, ERROR (default: ERROR)
-
-# Cache Configuration (optional - improves performance)
-cache_enabled: true
-cache_dir: ~/.prunarr/cache
-cache_max_size_mb: 100
-cache_ttl_movies: 3600      # 1 hour
-cache_ttl_series: 3600      # 1 hour
-cache_ttl_history: 300      # 5 minutes
-
-# Streaming Provider Configuration (optional - JustWatch integration)
-streaming_enabled: false    # Set to true to enable streaming provider checks
-streaming_locale: "en_US"   # Locale for JustWatch (language_COUNTRY format)
-streaming_providers:        # List of provider technical names
-  - "netflix"               # Netflix
-  - "amazonprime"           # Amazon Prime Video
-  - "disneyplus"            # Disney+
-  - "hulu"                  # Hulu
-cache_ttl_streaming: 86400  # 24 hours
-```
-
-### Method 2: Environment Variables
+## Quick Start
 
 ```bash
-# Required API Settings
-export RADARR_API_KEY="your-radarr-api-key"
-export RADARR_URL="https://radarr.yourdomain.com"
-export SONARR_API_KEY="your-sonarr-api-key"
-export SONARR_URL="https://sonarr.yourdomain.com"
-export TAUTULLI_API_KEY="your-tautulli-api-key"
-export TAUTULLI_URL="https://tautulli.yourdomain.com"
+# 1. Install
+pip install prunarr
 
-# Optional: Custom user tag pattern
-export USER_TAG_REGEX="^\\d+ - (.+)$"
+# 2. Configure (create config.yaml with your API keys)
+curl -O https://raw.githubusercontent.com/haijeploeg/prunarr/main/config.example.yaml
+mv config.example.yaml config.yaml
+# Edit config.yaml with your API keys
+
+# 3. Preview what would be removed
+prunarr --config config.yaml movies remove --dry-run
+
+# 4. Remove watched content (60+ days old by default)
+prunarr --config config.yaml movies remove
+prunarr --config config.yaml series remove
 ```
 
-### Configuration Settings
+📖 **[Full Quick Start Guide →](docs/QUICK_START.md)**
 
-| Setting | Description | Example | Default |
-|---------|-------------|---------|---------|
-| `radarr_api_key` | API key from Radarr Settings → General | `6dbfa503ff6f45d2...` | Required |
-| `radarr_url` | Radarr server URL (with protocol) | `https://radarr.example.com` | Required |
-| `sonarr_api_key` | API key from Sonarr Settings → General | `bb54fb4decab4503...` | Required |
-| `sonarr_url` | Sonarr server URL (with protocol) | `https://sonarr.example.com` | Required |
-| `tautulli_api_key` | API key from Tautulli Settings → Web Interface | `a5aa5211c0a04e21...` | Required |
-| `tautulli_url` | Tautulli server URL (with protocol) | `https://tautulli.example.com` | Required |
-| `user_tag_regex` | Regex for extracting usernames from tags | `^\\d+ - (.+)$` | `^\\d+ - (.+)$` |
-| `log_level` | Minimum log level to display | `INFO` | `ERROR` |
-| `cache_enabled` | Enable performance caching | `true` | `true` |
-| `cache_dir` | Cache storage directory | `~/.prunarr/cache` | `~/.prunarr/cache` |
-| `cache_max_size_mb` | Maximum cache size in MB | `100` | `100` |
-| `streaming_enabled` | Enable JustWatch streaming provider checks | `true` | `false` |
-| `streaming_locale` | Locale for streaming availability (language_COUNTRY) | `en_US` | `en_US` |
-| `streaming_providers` | List of provider technical names | `["nfx", "amp"]` | `[]` |
-| `cache_ttl_streaming` | Streaming data cache TTL (seconds) | `86400` | `86400` |
+---
 
-### Configuration Priority
+## Why PrunArr?
 
-PrunArr loads configuration in the following order (later sources override earlier ones):
-1. **Default values** (where applicable)
-2. **Environment variables**
-3. **YAML configuration file** (via `--config` flag)
+**The Problem:**
+- Your media library keeps growing
+- You're running out of storage space
+- Manually tracking what's been watched is tedious
+- You don't know what's safe to remove
+- There are Movies and Shows in your library that are also availble on streaming providers
 
-### Finding Your API Keys
+**The Solution:**
+PrunArr automates media cleanup by:
+- ✅ Checking Tautulli to see what's been watched
+- ✅ Removing content after your specified retention period
+- ✅ Checking if content is available on streaming services
+- ✅ Supporting user-based tracking for multi-user setups
+- ✅ Providing safety features (dry-run, confirmations, previews)
 
-#### Radarr/Sonarr API Keys
-1. Open your Radarr/Sonarr web interface
-2. Go to **Settings** → **General**
-3. Show **Advanced Settings**
-4. Copy the **API Key** from the Security section
+**Perfect for:**
+- People with limited storage space
+- Multi-user Plex/Jellyfin servers
+- Users of Overseerr request management
+- Anyone tired of manual library cleanup
+- Users who want to prioritize unique content over streamable content
 
-#### Tautulli API Key
-1. Open your Tautulli web interface
-2. Go to **Settings** → **Web Interface**
-3. Copy the **API Key** from the API section
+---
 
-## Tag System
+## Key Features
 
-PrunArr uses tags in Radarr/Sonarr for both user tracking and organizational filtering:
-
-### User Tags
-
-**Tag Format**: `"userid - username"`
-
-Example: `"123 - john_doe"`
-
-- Only movies/shows with tags matching this pattern are processed for removal
-- The username must match a user in Tautulli
-- Content is only removed when watched by the user specified in the tag
-
-### Organizational Tags
-
-PrunArr also displays and filters by non-user tags (tags that don't match the user tag pattern):
-
-**Examples**: `"4K"`, `"Action"`, `"Kids"`, `"HDR"`, `"Documentary"`
-
-- **Display**: Non-user tags appear in the Tags column of list commands (max 3 shown, "+N more" for additional)
-- **Filtering**: Use `--tag` to include only items with specific tags, or `--exclude-tag` to exclude items
-- **Case-Insensitive**: Tag matching is case-insensitive ("4k" matches "4K")
-- **Multiple Tags**: Specify `--tag` or `--exclude-tag` multiple times
-- **Match Modes**: Use `--tag-match-all` to require ALL specified tags instead of ANY
-
-## Streaming Provider Integration (JustWatch)
-
-PrunArr integrates with JustWatch to check streaming availability across your configured providers. This allows you to filter and manage content based on whether it's available on your streaming services.
-
-### Configuration
-
-Enable streaming provider checks in your `config.yaml`:
-
-```yaml
-streaming_enabled: true
-streaming_locale: "en_US"  # Your region (language_COUNTRY)
-streaming_providers:
-  - "netflix"              # Netflix
-  - "amazonprime"          # Amazon Prime Video
-  - "disneyplus"           # Disney+
-  - "hulu"                 # Hulu
-```
-
-**Common Provider Technical Names:**
-- `netflix` - Netflix
-- `amazonprime` - Amazon Prime Video
-- `disneyplus` - Disney Plus
-- `hulu` - Hulu
-- `max` - HBO Max
-- `appletvplus` - Apple TV+
-- `paramountplus` - Paramount+
-- `showtime` - Showtime
-
-**Note:** Use `prunarr providers list` to see all available provider technical names for your locale.
-
-### Filtering Options
-
-**`--on-streaming`**: Show/remove ONLY content available on your configured providers
-- Use case: Find movies you're storing that you can already stream
-
-**`--not-on-streaming`**: Show/remove ONLY content NOT available on streaming
-- Use case: Focus on your unique collection not available elsewhere
-
-### Example Use Cases
+### 🎯 User-Based Tracking
+Integrates with **Overseerr** to automatically track who requested what. Content is only removed when watched by the original requester.
 
 ```bash
-# Find large files you're storing that are available on streaming
-prunarr movies list --on-streaming --min-filesize 5GB
+prunarr movies remove --username "alice" --days-watched 30
+```
 
-# Clean up watched movies available on streaming (you can stream them)
+📖 **[Tag System Guide →](docs/TAG_SYSTEM.md)**
+
+### ⏰ Flexible Retention Periods
+Control exactly how long to keep watched content:
+
+```bash
+prunarr movies remove --days-watched 60   # Remove after 60 days
+prunarr series remove --days-watched 90   # Keep series longer
+```
+
+### 📦 Size-Based Filtering
+Target large files to free up space quickly:
+
+```bash
+prunarr movies list --min-filesize "5GB" --sort-by filesize --desc
+prunarr movies remove --min-filesize "5GB" --days-watched 60
+```
+
+### 🏷️ Tag-Based Organization
+Filter content by quality, genre, or any custom tags:
+
+```bash
+prunarr movies list --tag "4K" --tag "HDR"
+prunarr movies remove --tag "Kids" --days-watched 14
+prunarr movies remove --exclude-tag "Favorites"
+```
+
+### 🎬 Streaming Provider Integration
+Check if content is available on your streaming services via JustWatch:
+
+```bash
+# Remove watched movies available on streaming
 prunarr movies remove --on-streaming --days-watched 30
 
 # Keep unique content longer (not on streaming)
 prunarr movies remove --not-on-streaming --days-watched 180
-
-# See what unique content you have
-prunarr movies list --not-on-streaming
 ```
 
-### Caching
+📖 **[Streaming Integration Guide →](docs/STREAMING.md)**
 
-Streaming availability data is cached for 24 hours by default to minimize API calls. Cache TTL can be configured with `cache_ttl_streaming` in seconds.
+### 🛡️ Safety-First Design
+Multiple layers of protection:
+- **Dry-run mode** - Preview changes before committing
+- **Confirmation prompts** - Review what will be removed
+- **User verification** - Only remove content watched by the requester
+- **Detailed logging** - Track all operations with `--debug`
 
-## Usage
+### 📊 Rich Console Output
+Beautiful, informative tables with:
+- 🟢 Color-coded status (Watched, Partial, Unwatched)
+- 📏 Human-readable file sizes (MB, GB, TB)
+- 📅 Last watched dates and days ago
+- 🔄 JSON output option for automation
 
-PrunArr provides three main command categories with extensive filtering and management capabilities.
+### ⚡ Performance & Automation
+- **Intelligent caching** - Minimize API calls
+- **JSON output** - Machine-readable for scripts
+- **Cron-ready** - Perfect for scheduled automation
+- **Exit codes** - Proper status codes for monitoring
 
-### Global Options
+---
 
+## Documentation
+
+### Getting Started
+- **[Installation Guide](docs/INSTALLATION.md)** - Install PrunArr via pip or from source
+- **[Configuration Guide](docs/CONFIGURATION.md)** - Set up API keys and options
+- **[Quick Start Guide](docs/QUICK_START.md)** - Get productive in minutes
+- **[Command Reference](docs/COMMANDS.md)** - Complete command documentation
+
+### Core Concepts
+- **[Tag System](docs/TAG_SYSTEM.md)** - User tracking and content organization
+- **[Streaming Integration](docs/STREAMING.md)** - JustWatch provider integration
+- **[Advanced Features](docs/ADVANCED.md)** - Automation, scripting, and optimization
+- **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+
+---
+
+## Common Use Cases
+
+### Weekly Cleanup Routine
 ```bash
-# Show comprehensive help
-prunarr --help
-
-# Use custom configuration file
-prunarr --config /path/to/config.yaml <command>
-
-# Enable detailed debug logging (overrides log_level)
-prunarr --debug <command>
-
-# Get JSON output for automation
-prunarr movies list --output json
-prunarr series get "Breaking Bad" --output json
-prunarr cache status --output json
-```
-
-### 🎬 Movie Management (`prunarr movies`)
-
-#### List Movies with Advanced Filtering
-
-```bash
-# List all movies with watch status and file sizes
-prunarr movies list
-
-# Filter by specific user
-prunarr movies list --username "john_doe"
-
-# Show only watched movies
-prunarr movies list --watched
-
-# Show only unwatched movies
-prunarr movies list --unwatched
-
-# Find movies watched by someone other than the requester
-prunarr movies list --watched-by-other
-
-# Find movies ready for cleanup (watched 30+ days ago)
-prunarr movies list --days-watched 30
-
-# Filter by minimum file size
-prunarr movies list --min-filesize "2GB"
-
-# Exclude movies without user tags
-prunarr movies list --exclude-untagged
-
-# Filter by organizational tags
-prunarr movies list --tag "4K"                          # Show only 4K movies
-prunarr movies list --tag "Action" --tag "Sci-Fi"      # Show Action OR Sci-Fi movies
-prunarr movies list --tag "4K" --tag "HDR" --tag-match-all  # Show movies with BOTH 4K AND HDR
-prunarr movies list --exclude-tag "Kids"               # Exclude kids movies
-prunarr movies list --tag "Action" --exclude-tag "Kids" # Action movies, but not kids content
-
-# Sort by different criteria
-prunarr movies list --sort-by filesize --desc
-prunarr movies list --sort-by watched_date --limit 20
-prunarr movies list --sort-by days_watched
-
-# Combine multiple filters
-prunarr movies list --username "alice" --watched --min-filesize "1GB" --days-watched 60
-
-# Streaming provider filtering (requires streaming_enabled=true in config)
-prunarr movies list --on-streaming                    # Show ONLY movies on your streaming services
-prunarr movies list --not-on-streaming                # Show ONLY movies NOT on streaming
-prunarr movies list --on-streaming --min-filesize 5GB # Find large streamable files
-
-# Get JSON output for scripts/automation
-prunarr movies list --output json
-prunarr movies list --username "alice" --output json > movies.json
-```
-
-#### Remove Movies Safely
-
-```bash
-# Preview what would be removed (ALWAYS start with this)
-prunarr movies remove --dry-run
-
-# Remove movies watched 60+ days ago (default behavior)
-prunarr movies remove
-
-# Custom retention period
-prunarr movies remove --days-watched 90
-
-# Remove for specific user
-prunarr movies remove --username "john_doe" --days-watched 30
-
-# Remove large files first (sorted by size)
-prunarr movies remove --sort-by filesize --limit 10
-
-# Skip confirmation prompts (for automation)
-prunarr movies remove --force
-
-# Advanced filtering in removal
-prunarr movies remove --min-filesize "5GB" --days-watched 180 --dry-run
-
-# Streaming provider-based removal (requires streaming_enabled=true in config)
-prunarr movies remove --on-streaming --days-watched 30      # Remove watched movies you can stream
-prunarr movies remove --not-on-streaming --days-watched 180 # Keep unique content longer
-
-# Tag-based removal targeting
-prunarr movies remove --tag "Kids" --days-watched 14        # Cleanup kids movies after 2 weeks
-prunarr movies remove --exclude-tag "Favorites" --days-watched 30  # Keep favorites longer
-prunarr movies remove --tag "4K" --min-filesize "10GB"     # Target large 4K files
-```
-
-### 📺 TV Series Management (`prunarr series`)
-
-#### List Series with Comprehensive Details
-
-```bash
-# List all series with watch progress
-prunarr series list
-
-# Filter by user and watch status
-prunarr series list --username "alice" --watched
-prunarr series list --partially-watched
-prunarr series list --unwatched
-
-# Filter by series name (partial matching)
-prunarr series list --series "breaking bad"
-
-# Focus on specific season
-prunarr series list --series "the office" --season 2
-
-# Filter by organizational tags
-prunarr series list --tag "4K"                          # Show only 4K series
-prunarr series list --tag "Drama" --tag "Sci-Fi"       # Show Drama OR Sci-Fi series
-prunarr series list --tag "4K" --tag "HDR" --tag-match-all  # Show series with BOTH 4K AND HDR
-prunarr series list --exclude-tag "Kids"               # Exclude kids series
-prunarr series list --tag "Drama" --exclude-tag "Reality" # Drama series, but not reality TV
-
-# Limit results for quick overview
-prunarr series list --limit 10
-
-# Get JSON output for automation
-prunarr series list --output json
-prunarr series list --watched --output json > watched-series.json
-```
-
-#### Get Detailed Series Information
-
-```bash
-# Get comprehensive episode details by title
-prunarr series get "Breaking Bad"
-
-# Get details by Sonarr ID
-prunarr series get 123
-
-# Focus on specific season
-prunarr series get "The Office" --season 2
-
-# Show only unwatched episodes
-prunarr series get "Stranger Things" --unwatched-only
-
-# Show only watched episodes
-prunarr series get "Game of Thrones" --watched-only
-
-# Show watch info for all users (not just requester)
-prunarr series get "Westworld" --all-watchers
-
-# Get JSON output with complete episode data
-prunarr series get "Breaking Bad" --output json
-prunarr series get 123 --output json > series-details.json
-```
-
-#### Remove Series with Safety Controls
-
-```bash
-# Preview series removal (dry run)
-prunarr series remove --dry-run
-
-# Remove fully watched series (default: 60 days)
-prunarr series remove
-
-# Custom retention period
-prunarr series remove --days-watched 45
-
-# Remove for specific user
-prunarr series remove --username "john_doe"
-
-# Filter by specific series
-prunarr series remove --series "completed show name"
-
-# Skip confirmation prompts
-prunarr series remove --yes
-
-# Tag-based removal targeting
-prunarr series remove --tag "Kids" --days-watched 14        # Cleanup kids shows after 2 weeks
-prunarr series remove --exclude-tag "Favorites" --days-watched 60  # Keep favorites longer
-prunarr series remove --tag "Reality" --days-watched 30     # Quick cleanup of reality TV
-
-# Planned: Season-level removal
-prunarr series remove --mode season --days-watched 90
-```
-
-### 📊 Watch History Analysis (`prunarr history`)
-
-#### List Watch History with Filtering
-
-```bash
-# Show recent watch history (default: 100 items)
-prunarr history list
-
-# Show only fully watched items
-prunarr history list --watched
-
-# Filter by specific user
-prunarr history list --username "alice"
-
-# Filter by media type
-prunarr history list --media-type movie
-prunarr history list --media-type episode
-
-# Combine filters
-prunarr history list --username "john" --media-type movie --watched
-
-# Custom result limits
-prunarr history list --limit 50
-
-# Get all available history records
-prunarr history list --all
-
-# JSON output for analysis
-prunarr history list --output json
-prunarr history list --username "alice" --output json > user-history.json
-```
-
-#### Get Detailed History Information
-
-```bash
-# Get comprehensive details for specific history record
-prunarr history get 2792
-
-# Use history ID from the list command output
-prunarr history list --limit 5
-prunarr history get 12345
-
-# JSON output with all metadata
-prunarr history get 2792 --output json
-```
-
-### 🎬 Streaming Provider Management (`prunarr providers`)
-
-#### List Available Providers
-
-```bash
-# List all FLATRATE providers for your locale
-prunarr providers list
-
-# List providers for specific locale
-prunarr providers list --locale en_GB
-prunarr providers list --locale de_DE
-
-# Get JSON output for scripting
-prunarr providers list --output json
-prunarr providers list --output json | jq '.[] | select(.technical_name == "nfx")'
-
-# Find specific provider technical name
-prunarr providers list | grep -i netflix
-prunarr providers list | grep -i disney
-```
-
-#### Check Content Availability
-
-```bash
-# Check if a movie is available on streaming
-prunarr providers check "The Matrix"
-
-# Check with specific year for better matching
-prunarr providers check "The Matrix" --year 1999
-
-# Check TV series availability
-prunarr providers check "Breaking Bad" --type series
-prunarr providers check "Stranger Things" --type show
-
-# Check in different locale
-prunarr providers check "Dark" --type series --locale de_DE
-
-# Get JSON output with complete availability data
-prunarr providers check "Inception" --output json
-prunarr providers check "The Office" --type series --output json > availability.json
-```
-
-### 💾 Cache Management (`prunarr cache`)
-
-#### Initialize and Manage Cache
-
-```bash
-# Initialize cache for improved performance
-prunarr cache init
-
-# Full initialization (includes all episodes - slower but complete)
-prunarr cache init --full
-
-# Check cache status and statistics
-prunarr cache status
-
-# Get cache stats as JSON
-prunarr cache status --output json
-
-# Clear specific cache types
-prunarr cache clear --type movies
-prunarr cache clear --type series
-prunarr cache clear --type history
-
-# Clear all cache
-prunarr cache clear --type all
-
-# Refresh cache (clear and refetch)
-prunarr cache refresh --type history
-prunarr cache refresh --type all
-```
-
-### 🔧 Advanced Usage Patterns
-
-#### Maintenance Workflows
-
-```bash
-# Weekly cleanup workflow
+# Preview and remove watched content
 prunarr movies remove --days-watched 60 --dry-run
 prunarr movies remove --days-watched 60
-
-prunarr series remove --days-watched 90 --dry-run
 prunarr series remove --days-watched 90
+```
 
-# User-specific cleanup
-prunarr movies list --username "departed_user" --watched
-prunarr movies remove --username "departed_user" --days-watched 7 --force
-
-# Large file cleanup
+### Free Up Space Quickly
+```bash
+# Target large files first
 prunarr movies list --min-filesize "10GB" --sort-by filesize --desc
 prunarr movies remove --min-filesize "5GB" --days-watched 30
 ```
 
-#### Debug and Troubleshooting
-
+### Smart Streaming-Based Cleanup
 ```bash
-# Enable debug mode for detailed logging
-prunarr --debug movies list --limit 5
-prunarr --debug series get "problematic series"
-prunarr --debug history list --username "user"
+# Remove watched movies you can re-stream
+prunarr movies remove --on-streaming --days-watched 30
 
-# Configuration testing
-prunarr --debug --config test-config.yaml movies list --limit 1
-
-# Check cache operations
-prunarr --debug cache init
-prunarr --debug cache status
-
-# Set log level in config for persistent logging
-# In config.yaml: log_level: INFO
-prunarr movies list  # Will show INFO level logs
+# Keep unique content longer
+prunarr movies remove --not-on-streaming --days-watched 180
 ```
 
-#### Automation-friendly Commands
-
+### Multi-User Management
 ```bash
-# Automated cleanup (use with cron/systemd timers)
-prunarr --config /etc/prunarr/config.yaml movies remove --days-watched 90 --force
-prunarr --config /etc/prunarr/config.yaml series remove --days-watched 120 --yes
+# List content by user
+prunarr movies list --username "alice"
 
-# Safe automated preview (for monitoring)
-prunarr movies remove --dry-run > /tmp/prunarr-preview.log
-
-# JSON output for integration with other tools
-prunarr --config /etc/prunarr/config.yaml movies list --output json | jq '.[] | select(.days_since_watched > 90)'
-prunarr series list --watched --output json | process-data.py
-
-# Initialize cache before automated runs
-prunarr --config /etc/prunarr/config.yaml cache init
+# User-specific cleanup
+prunarr movies remove --username "bob" --days-watched 45
 ```
 
-### 🎨 Rich Console Features
-
-PrunArr provides beautiful, informative output:
-
-- **Color-coded Status**: 🟢 Watched, 🟡 Partial, 🔴 Unwatched
-- **File Size Display**: Human-readable sizes (MB, GB, TB)
-- **Progress Indicators**: Real-time operation feedback
-- **Detailed Tables**: Comprehensive information at a glance
-- **Smart Formatting**: Consistent, easy-to-read output
-- **Dual Output Modes**: Human-friendly tables or machine-readable JSON
-- **Configurable Logging**: Control verbosity with log levels (ERROR, WARNING, INFO, DEBUG)
-
-### 🔍 Filter Combinations
-
-PrunArr supports powerful filter combinations:
-
+### Kids Content Fast Rotation
 ```bash
-# Complex movie filtering
-prunarr movies list \
-  --username "power_user" \
-  --watched \
-  --days-watched 30 \
-  --min-filesize "2GB" \
-  --sort-by days_watched \
-  --desc \
-  --limit 20
-
-# Advanced series analysis
-prunarr series list \
-  --partially-watched \
-  --username "binge_watcher" \
-  --limit 10
-
-# Tag-based filtering combinations
-prunarr movies list \
-  --tag "4K" \
-  --tag "HDR" \
-  --tag-match-all \
-  --min-filesize "10GB" \
-  --watched \
-  --days-watched 90
-
-prunarr series list \
-  --tag "Drama" \
-  --exclude-tag "Reality" \
-  --exclude-tag "Kids" \
-  --watched
-
-# Targeted cleanup operations
-prunarr movies remove \
-  --days-watched 180 \
-  --min-filesize "8GB" \
-  --sort-by filesize \
-  --limit 5 \
-  --dry-run
+# Quick cleanup of kids content
+prunarr movies remove --tag "Kids" --days-watched 14
+prunarr series remove --tag "Kids" --days-watched 14
 ```
 
-## How It Works
+📖 **[More Examples →](docs/QUICK_START.md#common-workflows)**
 
-PrunArr uses a sophisticated multi-step process to safely and intelligently manage your media library:
+---
 
-### 🔍 Discovery & Analysis
-1. **Media Library Scanning**: Connects to Radarr/Sonarr APIs to discover all movies and TV series
-2. **User Tag Parsing**: Extracts usernames from tags using configurable regex patterns
-3. **Watch History Correlation**: Cross-references media with Tautulli watch history using TVDB/IMDB IDs
-4. **File Size Aggregation**: Calculates comprehensive file size data from individual episodes to series totals
+## Requirements
 
-### 🎯 Intelligent Filtering
-1. **User Verification**: Ensures only the original requester can trigger content removal
-2. **Watch Status Analysis**: Determines completion status (fully watched, partially watched, unwatched)
-3. **Time-based Logic**: Applies configurable retention periods based on last watch date
-4. **Multi-dimensional Filtering**: Supports complex filtering by user, status, size, date, and custom criteria
+- **Python 3.9 or higher**
+- **Radarr** (for movies) and/or **Sonarr** (for TV shows)
+- **Tautulli** (for watch history tracking)
+- **API keys** for all three services
+- **Optional: Overseerr** (for automatic user tag management)
 
-### 🛡️ Safety & Confirmation
-1. **Preview Mode**: Dry-run capabilities show exactly what would be affected
-2. **Progressive Confirmation**: Multiple confirmation steps with detailed summaries
-3. **Filter Transparency**: Clear indication of all applied filters and criteria
-4. **Graceful Error Handling**: Continues processing when individual items fail
+---
 
-### 🎬 Smart Media Management
-- **Episode-level Tracking**: Individual episode watch status and file sizes
-- **Season Aggregation**: Season-level statistics and management capabilities
-- **Series Intelligence**: Understands series completion and partial watching patterns
-- **Cross-platform Correlation**: Links media across Radarr, Sonarr, and Tautulli seamlessly
+## Installation
 
-## ✨ Key Features
+### From PyPI (Recommended)
+```bash
+pip install prunarr
+```
 
-### 🎯 Advanced Filtering System
-- **User-based Filtering**: Filter content by specific requesting users
-- **Watch Status Types**: Watched, unwatched, partially watched, watched by others
-- **Time-based Criteria**: Days since watched, addition date, custom time ranges
-- **File Size Filtering**: Minimum/maximum file size requirements with flexible units
-- **Tag-based Filtering**: Include/exclude content by organizational tags with ANY or ALL matching modes
-- **Multi-dimensional Combinations**: Combine any filters for precise control
+### From Source
+```bash
+git clone https://github.com/haijeploeg/prunarr
+cd prunarr
+pip install -e .
+```
 
-### 📊 Comprehensive Data Analysis
-- **Rich Watch Statistics**: Episode counts, completion percentages, last watch dates
-- **File Size Tracking**: Individual episode sizes up to series/movie totals
-- **User Activity Correlation**: Cross-reference requesting users with actual viewers
-- **Historical Analysis**: Deep dive into watch history with detailed metadata
+📖 **[Full Installation Guide →](docs/INSTALLATION.md)**
 
-### 🎨 Beautiful Console Interface
-- **Color-coded Status Indicators**: Instant visual feedback on media status
-- **Rich Tables**: Properly formatted tables with comprehensive information
-- **Progress Tracking**: Real-time feedback during operations
-- **Smart Formatting**: Human-readable file sizes, dates, and durations
+---
 
-### 🛡️ Safety-first Design
-- **Dry Run Modes**: Preview all operations before making changes
-- **Multiple Confirmation Steps**: Progressive confirmations for destructive operations
-- **User Tag Validation**: Only process content with proper user associations
-- **Detailed Operation Logs**: Comprehensive logging with debug capabilities
+## Configuration
 
-### 🔧 Advanced Management Capabilities
-- **Flexible Sorting**: Sort by title, date, file size, watch date, or days watched
-- **Smart Pagination**: Limit results for manageable output
-- **Series Detail Views**: Episode-level information with season aggregation
-- **History Analysis**: Deep dive into Tautulli watch records
+1. **Create config file:**
+   ```bash
+   curl -O https://raw.githubusercontent.com/haijeploeg/prunarr/main/config.example.yaml
+   mv config.example.yaml config.yaml
+   ```
 
-### 🚀 Automation Ready
-- **Configuration File Support**: YAML configuration for repeatable setups
-- **Environment Variable Support**: Flexible deployment options
-- **Force Modes**: Skip confirmations for automated workflows
-- **Exit Codes**: Proper exit codes for scripting and monitoring
-- **JSON Output**: Machine-readable output for all list/get/status commands
-- **Scriptable**: Easy integration with automation tools and workflows
+2. **Add your API keys:**
+   ```yaml
+   radarr_api_key: "your-radarr-api-key"
+   radarr_url: "https://radarr.yourdomain.com"
+   sonarr_api_key: "your-sonarr-api-key"
+   sonarr_url: "https://sonarr.yourdomain.com"
+   tautulli_api_key: "your-tautulli-api-key"
+   tautulli_url: "https://tautulli.yourdomain.com"
+   ```
 
-### ⚡ Performance & Caching
-- **Intelligent Caching**: Disk-based cache minimizes API calls
-- **Configurable TTLs**: Separate TTL settings per data type
-- **Cache Management**: Init, status, clear, and refresh operations
-- **Size Limits**: Automatic cleanup when cache exceeds size limits
-- **Cache Statistics**: Hit/miss tracking and performance metrics
+3. **Test your config:**
+   ```bash
+   prunarr --config config.yaml movies list --limit 5
+   ```
 
-### 📝 Logging & Debugging
-- **Configurable Log Levels**: DEBUG, INFO, WARNING, ERROR
-- **Debug Mode**: `--debug` flag for comprehensive troubleshooting
-- **API Call Tracing**: Detailed logging of all API interactions
-- **Cache Operation Logging**: Visibility into cache hits and misses
-- **Rich Formatting**: Color-coded, timestamped log messages
+📖 **[Full Configuration Guide →](docs/CONFIGURATION.md)**
+
+---
+
+## Overseerr Integration
+
+PrunArr works seamlessly with Overseerr's "Tag Requests" feature:
+
+1. In Overseerr, go to **Settings** → **Radarr/Sonarr**
+2. Enable **"Tag Requests"**
+3. That's it! PrunArr will automatically track who requested what
+
+When users request content through Overseerr:
+- Tags are automatically created (e.g., `"123 - john_doe"`)
+- PrunArr matches usernames with Tautulli
+- Content is only removed when watched by the original requester
+
+📖 **[Tag System Guide →](docs/TAG_SYSTEM.md#automatic-tags-with-overseerr-recommended)**
+
+---
+
+## Command Overview
+
+**Movies:**
+```bash
+prunarr movies list                      # List all movies
+prunarr movies remove --dry-run          # Preview removal
+prunarr movies remove --days-watched 60  # Remove watched movies
+```
+
+**Series:**
+```bash
+prunarr series list                      # List all series
+prunarr series get "Breaking Bad"        # Get detailed info
+prunarr series remove --days-watched 90  # Remove watched series
+```
+
+**History:**
+```bash
+prunarr history list --limit 20          # View watch history
+```
+
+**Streaming:**
+```bash
+prunarr providers list                   # List streaming providers
+prunarr providers check "The Matrix"     # Check availability
+```
+
+**Cache:**
+```bash
+prunarr cache init                       # Initialize cache
+prunarr cache status                     # View cache stats
+```
+
+📖 **[Complete Command Reference →](docs/COMMANDS.md)**
+
+---
 
 ## Contributing
+
+Contributions are welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests (`make test`)
+5. Format code (`make format`)
+6. Commit (`git commit -m 'feat: add amazing feature'`)
+7. Push (`git push origin feature/amazing-feature`)
+8. Open a Pull Request
 
 ### Development Setup
 
 ```bash
-# Install development dependencies
+git clone https://github.com/haijeploeg/prunarr
+cd prunarr
+python -m venv env
+source env/bin/activate
 pip install -e ".[dev]"
 
 # Run tests
 make test
 
-# Run linting
-make lint
-
 # Format code
 make format
+
+# Run linting
+make lint
 ```
 
-### Testing
+---
 
-```bash
-# Run all tests
-make test
+## Support
 
-# Run with coverage
-pytest --cov=prunarr --cov-report=term-missing
-```
+- **Documentation**: [docs/](docs/)
+- **Issues**: [GitHub Issues](https://github.com/haijeploeg/prunarr/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/haijeploeg/prunarr/discussions)
 
-## Security Notes
+---
 
-- Keep your API keys secure and never commit them to version control
-- The `config.yaml` file should be excluded from git
-- Consider using environment variables in production environments
+## License
 
-## Troubleshooting
+Apache-2.0 License - See [LICENSE](LICENSE) file for details.
 
-### Common Issues
+---
 
-1. **"Configuration validation failed"**: Ensure all required API keys and URLs are provided
-2. **"No movies found"**: Check that your movies have the correct user tag format
-3. **API connection errors**: Verify URLs and API keys are correct
+## Links
 
-### Getting Help
+- **GitHub**: https://github.com/haijeploeg/prunarr
+- **PyPI**: https://pypi.org/project/prunarr/
+- **Issues**: https://github.com/haijeploeg/prunarr/issues
 
-Use debug mode for detailed troubleshooting:
+---
 
-```bash
-prunarr --debug movies list
-```
+**Made with ❤️ for the Plex/Jellyfin community**
 
-This will show detailed information about configuration loading, API calls, and any errors encountered.
+*PrunArr is not affiliated with Radarr, Sonarr, Tautulli, Overseerr, Plex, or Jellyfin.*
