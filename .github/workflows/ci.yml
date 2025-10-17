@@ -4,10 +4,8 @@ permissions:
 
 on:
   push:
-    # Run on every push to any branch
     branches: [ "**" ]
   pull_request:
-    # Run on pull requests targeting main
     branches: [ main ]
 
 jobs:
