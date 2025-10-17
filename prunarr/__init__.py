@@ -1,2 +1,2 @@
-# Source of truth of the project version
+# Source of truth
 __version__ = "1.1.0"
