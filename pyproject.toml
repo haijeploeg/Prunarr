@@ -57,6 +57,11 @@ Repository = "https://github.com/hploeg/prunarr"
 Documentation = "https://github.com/hploeg/prunarr#readme"
 "Bug Reports" = "https://github.com/hploeg/prunarr/issues"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["prunarr*"]
+exclude = ["helm*", "tests*", "docs*"]
+
 [tool.setuptools.dynamic]
 version = {attr = "prunarr.__version__"}
 
