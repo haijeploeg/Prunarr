@@ -1,0 +1,87 @@
+{{- if eq .Values.mode "deployment" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prunarr.fullname" . }}
+  labels:
+    {{- include "prunarr.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.deployment.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "prunarr.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "prunarr.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "prunarr.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: {{ include "prunarr.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.deployment.command }}
+          command:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            # API Keys from Secret
+            - name: RADARR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "prunarr.secretName" . }}
+                  key: {{ .Values.externalSecrets.keys.radarrApiKey | default "radarr-api-key" }}
+            - name: SONARR_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "prunarr.secretName" . }}
+                  key: {{ .Values.externalSecrets.keys.sonarrApiKey | default "sonarr-api-key" }}
+            - name: TAUTULLI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "prunarr.secretName" . }}
+                  key: {{ .Values.externalSecrets.keys.tautulliApiKey | default "tautulli-api-key" }}
+          envFrom:
+            # Non-sensitive config from ConfigMap
+            - configMapRef:
+                name: {{ include "prunarr.configMapName" . }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: cache
+              mountPath: {{ .Values.config.cache.dir }}
+          {{- end }}
+      {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: cache
+          persistentVolumeClaim:
+            claimName: {{ include "prunarr.pvcName" . }}
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

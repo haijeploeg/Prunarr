@@ -1,0 +1,39 @@
+apiVersion: v2
+name: prunarr
+description: Automated media library cleanup for Radarr and Sonarr based on Tautulli watch status
+type: application
+
+# Chart version - Auto-generated from git tag in CI/CD pipeline
+version: 0.0.0-dev
+
+# Application version - Auto-generated from git tag in CI/CD pipeline
+appVersion: "0.0.0-dev"
+
+# Keywords for easier discovery
+keywords:
+  - radarr
+  - sonarr
+  - tautulli
+  - media
+  - automation
+  - cleanup
+  - plex
+
+# Maintainers
+maintainers:
+  - name: Haije Ploeg
+    email: ploeg.haije@gmail.com
+    url: https://github.com/hploeg
+
+# Sources
+sources:
+  - https://github.com/hploeg/prunarr
+
+# Home page
+home: https://github.com/hploeg/prunarr
+
+# Icon (optional - can be added later)
+# icon: https://example.com/prunarr-icon.png
+
+# Kubernetes version constraint
+kubeVersion: ">=1.19.0-0"

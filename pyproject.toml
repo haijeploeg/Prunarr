@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prunarr"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Automated media library cleanup for Radarr and Sonarr based on Tautulli watch status"
 authors = [{ name = "Haije Ploeg", email = "ploeg.haije@gmail.com" }]
 readme = "README.md"
@@ -56,6 +56,9 @@ Homepage = "https://github.com/hploeg/prunarr"
 Repository = "https://github.com/hploeg/prunarr"
 Documentation = "https://github.com/hploeg/prunarr#readme"
 "Bug Reports" = "https://github.com/hploeg/prunarr/issues"
+
+[tool.setuptools.dynamic]
+version = {attr = "prunarr.__version__"}
 
 [tool.black]
 line-length = 100

@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  prunarr:
+    # Use pre-built image from GitHub Container Registry
+    image: ghcr.io/hploeg/prunarr:latest
+
+    # Or build locally (uncomment to use local build instead)
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    # image: prunarr:latest
+
+    container_name: prunarr
+
+    # Environment variables for API configuration
+    environment:
+      # Radarr Configuration
+      - RADARR_API_KEY=${RADARR_API_KEY}
+      - RADARR_URL=${RADARR_URL:-https://radarr.example.com}
+
+      # Sonarr Configuration
+      - SONARR_API_KEY=${SONARR_API_KEY}
+      - SONARR_URL=${SONARR_URL:-https://sonarr.example.com}
+
+      # Tautulli Configuration
+      - TAUTULLI_API_KEY=${TAUTULLI_API_KEY}
+      - TAUTULLI_URL=${TAUTULLI_URL:-https://tautulli.example.com}
+
+      # Optional: User tag regex pattern
+      - USER_TAG_REGEX=${USER_TAG_REGEX:-^\\d+ - (.+)$$}
+
+      # Cache Configuration
+      - CACHE_ENABLED=${CACHE_ENABLED:-true}
+      - CACHE_DIR=/home/prunarr/.prunarr/cache
+      - CACHE_MAX_SIZE_MB=${CACHE_MAX_SIZE_MB:-100}
+
+      # Cache TTL settings (in seconds)
+      - CACHE_TTL_MOVIES=${CACHE_TTL_MOVIES:-3600}
+      - CACHE_TTL_SERIES=${CACHE_TTL_SERIES:-3600}
+      - CACHE_TTL_HISTORY=${CACHE_TTL_HISTORY:-300}
+      - CACHE_TTL_TAGS=${CACHE_TTL_TAGS:-86400}
+      - CACHE_TTL_METADATA=${CACHE_TTL_METADATA:-86400}
+
+      # Streaming Provider Configuration (Optional)
+      - STREAMING_ENABLED=${STREAMING_ENABLED:-false}
+      - STREAMING_LOCALE=${STREAMING_LOCALE:-en_US}
+      - CACHE_TTL_STREAMING=${CACHE_TTL_STREAMING:-86400}
+
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-ERROR}
+
+    # Volumes for persistence
+    volumes:
+      # Cache directory for improved performance
+      - prunarr-cache:/home/prunarr/.prunarr/cache
+
+      # Optional: Mount config file instead of using env vars
+      # - ./config.yaml:/app/config.yaml:ro
+
+    # Override entrypoint for interactive use
+    # Uncomment and modify the command as needed
+    # command: ["movies", "list", "--limit", "10"]
+
+    # For scheduled runs, use a cron container or Kubernetes CronJob
+    # This compose file is primarily for development and testing
+
+    restart: unless-stopped
+
+    # Security
+    user: "1000:1000"
+    read_only: false  # Set to true if you don't need write access outside cache
+
+    # Resource limits (adjust as needed)
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+volumes:
+  prunarr-cache:
+    driver: local

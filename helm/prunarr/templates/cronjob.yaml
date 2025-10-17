@@ -1,0 +1,289 @@
+{{- if eq .Values.mode "cronjob" }}
+{{- if .Values.cronjobs.movies.enabled }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "prunarr.fullname" . }}-movies
+  labels:
+    {{- include "prunarr.labels" . | nindent 4 }}
+    prunarr.io/job-type: movies
+spec:
+  schedule: {{ .Values.cronjobs.movies.schedule | quote }}
+  concurrencyPolicy: {{ .Values.cronjobs.movies.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.cronjobs.movies.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cronjobs.movies.failedJobsHistoryLimit }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "prunarr.selectorLabels" . | nindent 8 }}
+        prunarr.io/job-type: movies
+    spec:
+      template:
+        metadata:
+          annotations:
+            checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+            checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+            {{- with .Values.podAnnotations }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          labels:
+            {{- include "prunarr.selectorLabels" . | nindent 12 }}
+            prunarr.io/job-type: movies
+        spec:
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "prunarr.serviceAccountName" . }}
+          securityContext:
+            {{- toYaml .Values.podSecurityContext | nindent 12 }}
+          restartPolicy: {{ .Values.cronjobs.movies.restartPolicy }}
+          containers:
+            - name: {{ .Chart.Name }}
+              securityContext:
+                {{- toYaml .Values.securityContext | nindent 16 }}
+              image: {{ include "prunarr.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                {{- toYaml .Values.cronjobs.movies.command | nindent 16 }}
+              env:
+                # API Keys from Secret
+                - name: RADARR_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "prunarr.secretName" . }}
+                      key: {{ .Values.externalSecrets.keys.radarrApiKey | default "radarr-api-key" }}
+                - name: SONARR_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "prunarr.secretName" . }}
+                      key: {{ .Values.externalSecrets.keys.sonarrApiKey | default "sonarr-api-key" }}
+                - name: TAUTULLI_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "prunarr.secretName" . }}
+                      key: {{ .Values.externalSecrets.keys.tautulliApiKey | default "tautulli-api-key" }}
+              envFrom:
+                # Non-sensitive config from ConfigMap
+                - configMapRef:
+                    name: {{ include "prunarr.configMapName" . }}
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+              {{- if .Values.persistence.enabled }}
+              volumeMounts:
+                - name: cache
+                  mountPath: {{ .Values.config.cache.dir }}
+              {{- end }}
+          {{- if .Values.persistence.enabled }}
+          volumes:
+            - name: cache
+              persistentVolumeClaim:
+                claimName: {{ include "prunarr.pvcName" . }}
+          {{- end }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
+
+{{- if .Values.cronjobs.series.enabled }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "prunarr.fullname" . }}-series
+  labels:
+    {{- include "prunarr.labels" . | nindent 4 }}
+    prunarr.io/job-type: series
+spec:
+  schedule: {{ .Values.cronjobs.series.schedule | quote }}
+  concurrencyPolicy: {{ .Values.cronjobs.series.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.cronjobs.series.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cronjobs.series.failedJobsHistoryLimit }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "prunarr.selectorLabels" . | nindent 8 }}
+        prunarr.io/job-type: series
+    spec:
+      template:
+        metadata:
+          annotations:
+            checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+            checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+            {{- with .Values.podAnnotations }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          labels:
+            {{- include "prunarr.selectorLabels" . | nindent 12 }}
+            prunarr.io/job-type: series
+        spec:
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "prunarr.serviceAccountName" . }}
+          securityContext:
+            {{- toYaml .Values.podSecurityContext | nindent 12 }}
+          restartPolicy: {{ .Values.cronjobs.series.restartPolicy }}
+          containers:
+            - name: {{ .Chart.Name }}
+              securityContext:
+                {{- toYaml .Values.securityContext | nindent 16 }}
+              image: {{ include "prunarr.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                {{- toYaml .Values.cronjobs.series.command | nindent 16 }}
+              env:
+                # API Keys from Secret
+                - name: RADARR_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "prunarr.secretName" . }}
+                      key: {{ .Values.externalSecrets.keys.radarrApiKey | default "radarr-api-key" }}
+                - name: SONARR_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "prunarr.secretName" . }}
+                      key: {{ .Values.externalSecrets.keys.sonarrApiKey | default "sonarr-api-key" }}
+                - name: TAUTULLI_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "prunarr.secretName" . }}
+                      key: {{ .Values.externalSecrets.keys.tautulliApiKey | default "tautulli-api-key" }}
+              envFrom:
+                # Non-sensitive config from ConfigMap
+                - configMapRef:
+                    name: {{ include "prunarr.configMapName" . }}
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+              {{- if .Values.persistence.enabled }}
+              volumeMounts:
+                - name: cache
+                  mountPath: {{ .Values.config.cache.dir }}
+              {{- end }}
+          {{- if .Values.persistence.enabled }}
+          volumes:
+            - name: cache
+              persistentVolumeClaim:
+                claimName: {{ include "prunarr.pvcName" . }}
+          {{- end }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
+
+{{- if .Values.cronjobs.cacheRefresh.enabled }}
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "prunarr.fullname" . }}-cache-refresh
+  labels:
+    {{- include "prunarr.labels" . | nindent 4 }}
+    prunarr.io/job-type: cache-refresh
+spec:
+  schedule: {{ .Values.cronjobs.cacheRefresh.schedule | quote }}
+  concurrencyPolicy: {{ .Values.cronjobs.cacheRefresh.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.cronjobs.cacheRefresh.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cronjobs.cacheRefresh.failedJobsHistoryLimit }}
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "prunarr.selectorLabels" . | nindent 8 }}
+        prunarr.io/job-type: cache-refresh
+    spec:
+      template:
+        metadata:
+          annotations:
+            checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+            checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+            {{- with .Values.podAnnotations }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          labels:
+            {{- include "prunarr.selectorLabels" . | nindent 12 }}
+            prunarr.io/job-type: cache-refresh
+        spec:
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "prunarr.serviceAccountName" . }}
+          securityContext:
+            {{- toYaml .Values.podSecurityContext | nindent 12 }}
+          restartPolicy: {{ .Values.cronjobs.cacheRefresh.restartPolicy }}
+          containers:
+            - name: {{ .Chart.Name }}
+              securityContext:
+                {{- toYaml .Values.securityContext | nindent 16 }}
+              image: {{ include "prunarr.image" . }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command:
+                {{- toYaml .Values.cronjobs.cacheRefresh.command | nindent 16 }}
+              env:
+                # API Keys from Secret
+                - name: RADARR_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "prunarr.secretName" . }}
+                      key: {{ .Values.externalSecrets.keys.radarrApiKey | default "radarr-api-key" }}
+                - name: SONARR_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "prunarr.secretName" . }}
+                      key: {{ .Values.externalSecrets.keys.sonarrApiKey | default "sonarr-api-key" }}
+                - name: TAUTULLI_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "prunarr.secretName" . }}
+                      key: {{ .Values.externalSecrets.keys.tautulliApiKey | default "tautulli-api-key" }}
+              envFrom:
+                # Non-sensitive config from ConfigMap
+                - configMapRef:
+                    name: {{ include "prunarr.configMapName" . }}
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+              {{- if .Values.persistence.enabled }}
+              volumeMounts:
+                - name: cache
+                  mountPath: {{ .Values.config.cache.dir }}
+              {{- end }}
+          {{- if .Values.persistence.enabled }}
+          volumes:
+            - name: cache
+              persistentVolumeClaim:
+                claimName: {{ include "prunarr.pvcName" . }}
+          {{- end }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.affinity }}
+          affinity:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
+{{- end }}

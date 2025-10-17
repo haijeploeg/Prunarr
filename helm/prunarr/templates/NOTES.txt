@@ -1,0 +1,66 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+{{- if eq .Values.mode "cronjob" }}
+
+✅ PrunArr is running in CronJob mode with the following schedules:
+
+{{- if .Values.cronjobs.movies.enabled }}
+  • Movies cleanup: {{ .Values.cronjobs.movies.schedule }}
+    Command: {{ .Values.cronjobs.movies.command | join " " }}
+{{- end }}
+
+{{- if .Values.cronjobs.series.enabled }}
+  • Series cleanup: {{ .Values.cronjobs.series.schedule }}
+    Command: {{ .Values.cronjobs.series.command | join " " }}
+{{- end }}
+
+{{- if .Values.cronjobs.cacheRefresh.enabled }}
+  • Cache refresh: {{ .Values.cronjobs.cacheRefresh.schedule }}
+    Command: {{ .Values.cronjobs.cacheRefresh.command | join " " }}
+{{- end }}
+
+To view CronJob status:
+  kubectl get cronjobs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+To view recent job runs:
+  kubectl get jobs -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+To manually trigger a job:
+  kubectl create job --from=cronjob/{{ include "prunarr.fullname" . }}-movies manual-run-$(date +%s) -n {{ .Release.Namespace }}
+
+{{- else if eq .Values.mode "deployment" }}
+
+✅ PrunArr is running in Deployment mode for interactive use.
+
+To run commands interactively:
+  kubectl exec -it deployment/{{ include "prunarr.fullname" . }} -n {{ .Release.Namespace }} -- prunarr --help
+
+Example commands:
+  # List movies
+  kubectl exec -it deployment/{{ include "prunarr.fullname" . }} -n {{ .Release.Namespace }} -- prunarr movies list --limit 10
+
+  # List series
+  kubectl exec -it deployment/{{ include "prunarr.fullname" . }} -n {{ .Release.Namespace }} -- prunarr series list --limit 10
+
+  # Check cache status
+  kubectl exec -it deployment/{{ include "prunarr.fullname" . }} -n {{ .Release.Namespace }} -- prunarr cache status
+
+{{- end }}
+
+{{- if .Values.persistence.enabled }}
+
+📦 Cache persistence is enabled using PVC: {{ include "prunarr.pvcName" . }}
+   Size: {{ .Values.persistence.size }}
+   Access Mode: {{ .Values.persistence.accessMode }}
+
+{{- end }}
+
+🔐 API credentials are stored in secret: {{ include "prunarr.secretName" . }}
+
+📝 Configuration is stored in configmap: {{ include "prunarr.configMapName" . }}
+
+For more information:
+  • Documentation: https://github.com/hploeg/prunarr
+  • Issues: https://github.com/hploeg/prunarr/issues
