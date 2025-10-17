@@ -3,11 +3,11 @@ name: Publish to PyPI
 on:
   push:
     tags:
-      - 'v*.*.*'  # Triggers on version tags like v1.0.0, v1.2.3, etc.
+      - 'v*.*.*'
 
 permissions:
-  contents: write  # Required for creating GitHub releases
-  id-token: write  # Required for PyPI trusted publishing
+  contents: write
+  id-token: write
 
 jobs:
   test:
@@ -34,13 +34,13 @@ jobs:
         pytest --cov=prunarr --cov-report=xml --cov-report=term-missing
 
   publish:
-    needs: test  # Only publish if tests pass
+    needs: test
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Fetch all history for changelog generation
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v4
