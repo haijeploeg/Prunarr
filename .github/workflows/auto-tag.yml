@@ -15,10 +15,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Generate GitHub App token to trigger downstream workflows
+      # Using GITHUB_TOKEN would NOT trigger docker.yml, helm.yml, or publish.yml
+      # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+      - name: Generate GitHub App token
+        id: generate-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ steps.generate-token.outputs.token }}
 
       - name: Extract version from __init__.py
         id: version
