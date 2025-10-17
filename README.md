@@ -1,12 +1,12 @@
+[![PyPI version](https://badge.fury.io/py/prunarr.svg)](https://pypi.org/project/prunarr/)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 # PrunArr
 
 **Automatically clean up your Radarr and Sonarr libraries based on what you've actually watched in Plex/Jellyfin (via Tautulli).**
 
 Stop manually managing your media library. PrunArr removes watched content after a configurable period, checks streaming availability, and gives you complete control over what stays and what goes.
-
-[![PyPI version](https://badge.fury.io/py/prunarr.svg)](https://pypi.org/project/prunarr/)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 ---
 
@@ -197,8 +197,67 @@ prunarr series remove --tag "Kids" --days-watched 14
 - **Python 3.9 or higher**
 - **Radarr** (for movies) and/or **Sonarr** (for TV shows)
 - **Tautulli** (for watch history tracking)
-- **API keys** for all three services
-- **Optional: Overseerr** (for automatic user tag management)
+
+---
+
+## Deployment Options
+
+### 📦 PyPI Installation (Recommended)
+
+```bash
+pip install prunarr
+```
+
+### 🐳 Docker
+
+Run PrunArr in a container for isolated, portable deployments:
+
+```bash
+# Pull from GitHub Container Registry
+docker pull ghcr.io/hploeg/prunarr:latest
+
+# Run with Docker
+docker run --rm \
+  -e RADARR_API_KEY="your-api-key" \
+  -e RADARR_URL="https://radarr.example.com" \
+  -e SONARR_API_KEY="your-api-key" \
+  -e SONARR_URL="https://sonarr.example.com" \
+  -e TAUTULLI_API_KEY="your-api-key" \
+  -e TAUTULLI_URL="https://tautulli.example.com" \
+  ghcr.io/hploeg/prunarr:latest movies list --limit 10
+
+# Or use Docker Compose
+docker-compose run --rm prunarr movies remove --dry-run
+```
+
+📖 **[Docker Deployment Guide →](docs/DOCKER.md)**
+
+### ☸️ Kubernetes with Helm
+
+Deploy to Kubernetes for automated, scheduled cleanups:
+
+```bash
+# Install from OCI registry
+helm install prunarr oci://ghcr.io/hploeg/charts/prunarr \
+  --version 1.0.0 \
+  --set config.radarr.apiKey="your-api-key" \
+  --set config.radarr.url="https://radarr.example.com" \
+  --set config.sonarr.apiKey="your-api-key" \
+  --set config.sonarr.url="https://sonarr.example.com" \
+  --set config.tautulli.apiKey="your-api-key" \
+  --set config.tautulli.url="https://tautulli.example.com"
+
+# Default: CronJob mode with daily cleanup at 2 AM (movies) and 3 AM (series)
+```
+
+**Features:**
+- 🕐 Automated scheduling with Kubernetes CronJobs
+- 💾 Persistent cache with PVC
+- 🔒 Secret management for API keys
+- 📊 Resource limits and health checks
+- 🔄 Easy rollbacks and updates
+
+📖 **[Kubernetes Deployment Guide →](docs/KUBERNETES.md)**
 
 ---
 

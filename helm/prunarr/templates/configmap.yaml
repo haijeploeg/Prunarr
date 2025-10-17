@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "prunarr.configMapName" . }}
+  labels:
+    {{- include "prunarr.labels" . | nindent 4 }}
+data:
+  # API URLs (non-sensitive)
+  RADARR_URL: {{ .Values.config.radarr.url | quote }}
+  SONARR_URL: {{ .Values.config.sonarr.url | quote }}
+  TAUTULLI_URL: {{ .Values.config.tautulli.url | quote }}
+
+  # User tag regex
+  USER_TAG_REGEX: {{ .Values.config.userTagRegex | quote }}
+
+  # Cache configuration
+  CACHE_ENABLED: {{ .Values.config.cache.enabled | quote }}
+  CACHE_DIR: {{ .Values.config.cache.dir | quote }}
+  CACHE_MAX_SIZE_MB: {{ .Values.config.cache.maxSizeMb | quote }}
+  CACHE_TTL_MOVIES: {{ .Values.config.cache.ttl.movies | quote }}
+  CACHE_TTL_SERIES: {{ .Values.config.cache.ttl.series | quote }}
+  CACHE_TTL_HISTORY: {{ .Values.config.cache.ttl.history | quote }}
+  CACHE_TTL_TAGS: {{ .Values.config.cache.ttl.tags | quote }}
+  CACHE_TTL_METADATA: {{ .Values.config.cache.ttl.metadata | quote }}
+  CACHE_TTL_STREAMING: {{ .Values.config.cache.ttl.streaming | quote }}
+
+  # Streaming configuration
+  STREAMING_ENABLED: {{ .Values.config.streaming.enabled | quote }}
+  STREAMING_LOCALE: {{ .Values.config.streaming.locale | quote }}
+  {{- if .Values.config.streaming.providers }}
+  STREAMING_PROVIDERS: {{ join "," .Values.config.streaming.providers | quote }}
+  {{- end }}
+
+  # Logging
+  LOG_LEVEL: {{ .Values.config.logging.level | quote }}

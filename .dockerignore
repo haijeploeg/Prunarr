@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Testing and coverage
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+.github/
+
+# Documentation (not needed in image)
+docs/
+*.md
+!README.md
+
+# Config files (mounted at runtime)
+config.yaml
+config.example.yaml
+
+# Other
+.DS_Store
+Makefile
+docker-compose.yml
+.dockerignore
+helm/

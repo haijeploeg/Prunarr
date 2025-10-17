@@ -1,0 +1,179 @@
+# Default values for PrunArr Helm chart
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Container image configuration
+image:
+  repository: ghcr.io/hploeg/prunarr
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion
+  # Leave empty to use appVersion from Chart.yaml
+  tag: ""
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Deployment mode: "cronjob" or "deployment"
+# - cronjob: Scheduled automatic cleanup (recommended for production)
+# - deployment: Always-running pod for manual kubectl exec commands
+mode: cronjob
+
+# CronJob configuration (when mode: cronjob)
+cronjobs:
+  # Movies cleanup job
+  movies:
+    enabled: true
+    # Schedule in Cron format (default: daily at 2 AM)
+    schedule: "0 2 * * *"
+    # Command to run
+    command: ["movies", "remove", "--days-watched", "60", "--force"]
+    # Concurrency policy: Allow, Forbid, or Replace
+    concurrencyPolicy: Forbid
+    # Number of successful/failed jobs to retain
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 3
+    # Job restart policy
+    restartPolicy: OnFailure
+
+  # Series cleanup job
+  series:
+    enabled: true
+    # Schedule in Cron format (default: daily at 3 AM)
+    schedule: "0 3 * * *"
+    # Command to run
+    command: ["series", "remove", "--days-watched", "60", "--force"]
+    concurrencyPolicy: Forbid
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 3
+    restartPolicy: OnFailure
+
+  # Cache refresh job (optional)
+  cacheRefresh:
+    enabled: false
+    # Schedule in Cron format (default: every 6 hours)
+    schedule: "0 */6 * * *"
+    command: ["cache", "refresh", "--type", "all", "--force"]
+    concurrencyPolicy: Forbid
+    successfulJobsHistoryLimit: 1
+    failedJobsHistoryLimit: 1
+    restartPolicy: OnFailure
+
+# Deployment configuration (when mode: deployment)
+deployment:
+  replicaCount: 1
+  # Command override for deployment mode (default: sleep infinity for kubectl exec)
+  command: ["sleep", "infinity"]
+
+# Service account configuration
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false  # Set to true if cache is mounted externally
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: 1000m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 128Mi
+
+# Node selector for pod assignment
+nodeSelector: {}
+
+# Tolerations for pod assignment
+tolerations: []
+
+# Affinity for pod assignment
+affinity: {}
+
+# Persistent Volume Claim for cache storage
+persistence:
+  enabled: true
+  # storageClass: "-"
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  # annotations: {}
+  # existingClaim: ""
+
+# PrunArr configuration
+config:
+  # API Configuration (stored in Secret)
+  radarr:
+    apiKey: ""  # Set via --set config.radarr.apiKey or create secret manually
+    url: "https://radarr.example.com"
+
+  sonarr:
+    apiKey: ""  # Set via --set config.sonarr.apiKey or create secret manually
+    url: "https://sonarr.example.com"
+
+  tautulli:
+    apiKey: ""  # Set via --set config.tautulli.apiKey or create secret manually
+    url: "https://tautulli.example.com"
+
+  # User tag regex pattern
+  userTagRegex: "^\\d+ - (.+)$"
+
+  # Cache configuration
+  cache:
+    enabled: true
+    dir: /home/prunarr/.prunarr/cache
+    maxSizeMb: 100
+    ttl:
+      movies: 3600      # 1 hour
+      series: 3600      # 1 hour
+      history: 300      # 5 minutes
+      tags: 86400       # 24 hours
+      metadata: 86400   # 24 hours
+      streaming: 86400  # 24 hours
+
+  # Streaming provider configuration (optional)
+  streaming:
+    enabled: false
+    locale: "en_US"
+    providers: []
+    # Example providers (use technical names):
+    # - netflix
+    # - amazonprime
+    # - disneyplus
+    # - hulu
+
+  # Logging configuration
+  logging:
+    level: ERROR  # DEBUG, INFO, WARNING, ERROR
+
+# External secrets (if using external secret management)
+# Set this to true if you're managing secrets externally
+externalSecrets:
+  enabled: false
+  # Name of existing secret containing API keys
+  secretName: ""
+  # Keys in the secret
+  keys:
+    radarrApiKey: "radarr-api-key"
+    sonarrApiKey: "sonarr-api-key"
+    tautulliApiKey: "tautulli-api-key"
