@@ -10,13 +10,13 @@ PrunArr images are automatically built and published to GitHub Container Registr
 
 ```bash
 # Pull latest version
-docker pull ghcr.io/hploeg/prunarr:latest
+docker pull ghcr.io/haijeploeg/prunarr:latest
 
 # Pull specific version
-docker pull ghcr.io/hploeg/prunarr:1.0.0
+docker pull ghcr.io/haijeploeg/prunarr:1.0.0
 
 # Pull by major version (automatically gets latest minor/patch)
-docker pull ghcr.io/hploeg/prunarr:1
+docker pull ghcr.io/haijeploeg/prunarr:1
 ```
 
 **Available Tags:**
@@ -57,7 +57,7 @@ docker run --rm \
   -e SONARR_URL="https://sonarr.example.com" \
   -e TAUTULLI_API_KEY="your-api-key" \
   -e TAUTULLI_URL="https://tautulli.example.com" \
-  ghcr.io/hploeg/prunarr:latest movies list --limit 10
+  ghcr.io/haijeploeg/prunarr:latest movies list --limit 10
 ```
 
 ### With Persistent Cache
@@ -76,7 +76,7 @@ docker run --rm \
   -e TAUTULLI_URL="https://tautulli.example.com" \
   -e CACHE_ENABLED=true \
   -v prunarr-cache:/home/prunarr/.prunarr/cache \
-  ghcr.io/hploeg/prunarr:latest series list --limit 10
+  ghcr.io/haijeploeg/prunarr:latest series list --limit 10
 ```
 
 ### Using Config File
@@ -87,7 +87,7 @@ Mount a config file instead of environment variables:
 docker run --rm \
   -v $(pwd)/config.yaml:/app/config.yaml:ro \
   -v prunarr-cache:/home/prunarr/.prunarr/cache \
-  ghcr.io/hploeg/prunarr:latest --config /app/config.yaml movies list
+  ghcr.io/haijeploeg/prunarr:latest --config /app/config.yaml movies list
 ```
 
 ## Docker Compose

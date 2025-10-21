@@ -3,7 +3,7 @@ version: '3.8'
 services:
   prunarr:
     # Use pre-built image from GitHub Container Registry
-    image: ghcr.io/hploeg/prunarr:latest
+    image: ghcr.io/haijeploeg/prunarr:latest
 
     # Or build locally (uncomment to use local build instead)
     # build:

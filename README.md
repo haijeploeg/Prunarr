@@ -214,7 +214,7 @@ Run PrunArr in a container for isolated, portable deployments:
 
 ```bash
 # Pull from GitHub Container Registry
-docker pull ghcr.io/hploeg/prunarr:latest
+docker pull ghcr.io/haijeploeg/prunarr:latest
 
 # Run with Docker
 docker run --rm \
@@ -224,7 +224,7 @@ docker run --rm \
   -e SONARR_URL="https://sonarr.example.com" \
   -e TAUTULLI_API_KEY="your-api-key" \
   -e TAUTULLI_URL="https://tautulli.example.com" \
-  ghcr.io/hploeg/prunarr:latest movies list --limit 10
+  ghcr.io/haijeploeg/prunarr:latest movies list --limit 10
 
 # Or use Docker Compose
 docker-compose run --rm prunarr movies remove --dry-run
@@ -238,7 +238,7 @@ Deploy to Kubernetes for automated, scheduled cleanups:
 
 ```bash
 # Install from OCI registry
-helm install prunarr oci://ghcr.io/hploeg/charts/prunarr \
+helm install prunarr oci://ghcr.io/haijeploeg/charts/prunarr \
   --version 1.0.0 \
   --set config.radarr.apiKey="your-api-key" \
   --set config.radarr.url="https://radarr.example.com" \

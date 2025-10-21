@@ -17,7 +17,7 @@ This guide covers deploying PrunArr to Kubernetes using the official Helm chart.
 
 ```bash
 # Install directly from GitHub Container Registry
-helm install prunarr oci://ghcr.io/hploeg/charts/prunarr \
+helm install prunarr oci://ghcr.io/haijeploeg/charts/prunarr \
   --version 1.0.0 \
   --set config.radarr.apiKey="your-radarr-api-key" \
   --set config.radarr.url="https://radarr.example.com" \
@@ -93,7 +93,7 @@ Create a `values.yaml` file:
 mode: cronjob
 
 image:
-  repository: ghcr.io/hploeg/prunarr
+  repository: ghcr.io/haijeploeg/prunarr
   tag: "1.0.0"
 
 config:
