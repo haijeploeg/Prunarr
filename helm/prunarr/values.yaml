@@ -27,7 +27,7 @@ cronjobs:
     # Schedule in Cron format (default: daily at 2 AM)
     schedule: "0 2 * * *"
     # Command to run
-    command: ["movies", "remove", "--days-watched", "60", "--force"]
+    command: ["movies", "remove", "--watched", "--days-watched", "60", "--force"]
     # Concurrency policy: Allow, Forbid, or Replace
     concurrencyPolicy: Forbid
     # Number of successful/failed jobs to retain
@@ -42,7 +42,7 @@ cronjobs:
     # Schedule in Cron format (default: daily at 3 AM)
     schedule: "0 3 * * *"
     # Command to run
-    command: ["series", "remove", "--days-watched", "60", "--force"]
+    command: ["series", "remove", "--watched", "--days-watched", "60", "--force"]
     concurrencyPolicy: Forbid
     successfulJobsHistoryLimit: 3
     failedJobsHistoryLimit: 3

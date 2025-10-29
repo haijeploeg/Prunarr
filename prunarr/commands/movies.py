@@ -507,8 +507,8 @@ def list_movies(
 @app.command("remove")
 def remove_movies(
     ctx: typer.Context,
-    days_watched: int = typer.Option(
-        60, "--days-watched", "-d", help="Remove movies watched more than X days ago (default: 60)"
+    days_watched: Optional[int] = typer.Option(
+        None, "--days-watched", "-d", help="Remove movies watched more than X days ago"
     ),
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show what would be removed without actually deleting"
@@ -517,9 +517,7 @@ def remove_movies(
     username: Optional[str] = typer.Option(
         None, "--username", "-u", help="Filter by specific username"
     ),
-    watched_only: bool = typer.Option(
-        True, "--watched/--no-watched", "-w", help="Remove only watched movies (default: True)"
-    ),
+    watched_only: bool = typer.Option(False, "--watched", "-w", help="Remove only watched movies"),
     unwatched_only: bool = typer.Option(False, "--unwatched", help="Remove only unwatched movies"),
     watched_by_other_only: bool = typer.Option(
         False,
@@ -542,9 +540,9 @@ def remove_movies(
         None, "--limit", "-l", help="Limit number of movies to process"
     ),
     include_untagged: bool = typer.Option(
-        False,
+        True,
         "--include-untagged/--exclude-untagged",
-        help="Include movies without user tags (default: exclude untagged)",
+        help="Include movies without user tags (default: include)",
     ),
     tags: Optional[List[str]] = typer.Option(
         None, "--tag", help="Remove only movies with this tag (can specify multiple times)"
@@ -588,18 +586,19 @@ def remove_movies(
         • [cyan]--delete-files[/cyan] - control whether files are deleted (default: True)
         • [cyan]--add-to-exclusion[/cyan] - add to Radarr exclusion list to prevent re-adding
         • Interactive confirmation by default
-        • Defaults to only removing watched movies
+        • Requires at least one filter to prevent accidental removal
 
     [bold yellow]Watch status filtering:[/bold yellow]
-        • [green]--watched[/green] - remove only watched movies (default: True)
+        • [green]--watched[/green] - remove only watched movies
         • [green]--unwatched[/green] - remove only unwatched movies
         • [green]--watched-by-other[/green] - remove only movies watched by someone other than requester
-        • [green]--no-watched[/green] - disable default watched-only filter
 
     [bold yellow]Other filtering options:[/bold yellow]
         • [green]--username[/green] - filter by specific user
-        • [green]--days-watched[/green] - movies watched X+ days ago (default: 60)
+        • [green]--days-watched[/green] - movies watched X+ days ago
         • [green]--min-filesize[/green] - minimum file size (e.g., '1GB', '500MB')
+        • [green]--tag[/green] - include only movies with specific tag(s)
+        • [green]--exclude-tag[/green] - exclude movies with specific tag(s)
         • [green]--include-untagged/--exclude-untagged[/green] - control untagged movies
         • [green]--on-streaming[/green] - remove ONLY movies available on streaming providers
         • [green]--not-on-streaming[/green] - remove ONLY movies NOT available on streaming
@@ -610,41 +609,69 @@ def remove_movies(
         • [green]--sort-asc[/green] - sort ascending (default: descending for days_watched)
 
     [bold yellow]Examples:[/bold yellow]
-        [dim]# Preview removal (safe dry run)[/dim]
-        prunarr movies remove [green]--dry-run[/green]
+        [dim]# Preview removal (dry run - always test first!)[/dim]
+        prunarr movies remove [green]--watched[/green] [green]--days-watched[/green] 60 [green]--dry-run[/green]
 
-        [dim]# Remove watched movies (default behavior)[/dim]
-        prunarr movies remove [green]--watched[/green]
+        [dim]# Remove watched movies older than 60 days[/dim]
+        prunarr movies remove [green]--watched[/green] [green]--days-watched[/green] 60
 
-        [dim]# Remove unwatched movies[/dim]
+        [dim]# Remove unwatched movies (cleanup failed downloads)[/dim]
         prunarr movies remove [green]--unwatched[/green]
 
         [dim]# Remove old large movies for specific user[/dim]
         prunarr movies remove [green]--username[/green] "john" [green]--min-filesize[/green] 2GB [green]--days-watched[/green] 90
 
-        [dim]# Remove untagged movies that have been watched[/dim]
-        prunarr movies remove [green]--include-untagged[/green] [green]--days-watched[/green] 30
+        [dim]# Remove based on file size only (largest files)[/dim]
+        prunarr movies remove [green]--min-filesize[/green] 10GB [green]--sort-by[/green] filesize [green]--limit[/green] 5
 
         [dim]# Force remove without confirmation[/dim]
-        prunarr movies remove [green]--days-watched[/green] 180 [green]--force[/green]
+        prunarr movies remove [green]--watched[/green] [green]--days-watched[/green] 180 [green]--force[/green]
 
         [dim]# Remove oldest watched movies first, limit to 10[/dim]
-        prunarr movies remove [green]--sort-by[/green] days_watched [green]--limit[/green] 10
+        prunarr movies remove [green]--watched[/green] [green]--days-watched[/green] 30 [green]--sort-by[/green] days_watched [green]--limit[/green] 10
 
-        [dim]# Quick cleanup by file size (largest first)[/dim]
-        prunarr movies remove [green]--sort-by[/green] filesize [green]--limit[/green] 5
-
-        [dim]# Remove watched movies available on streaming (you can stream them)[/dim]
-        prunarr movies remove [green]--on-streaming[/green] [green]--days-watched[/green] 30
+        [dim]# Remove watched movies available on streaming[/dim]
+        prunarr movies remove [green]--watched[/green] [green]--on-streaming[/green] [green]--days-watched[/green] 30
 
         [dim]# Remove watched movies NOT on streaming (keep unique content longer)[/dim]
-        prunarr movies remove [green]--not-on-streaming[/green] [green]--days-watched[/green] 180
+        prunarr movies remove [green]--watched[/green] [green]--not-on-streaming[/green] [green]--days-watched[/green] 180
     """
     context_obj = ctx.obj
     settings: Settings = context_obj["settings"]
     debug: bool = context_obj["debug"]
 
     logger = get_logger("movies", debug=debug, log_level=settings.log_level)
+
+    # Validate that at least one filter is specified (safety check)
+    has_filter = any(
+        [
+            days_watched is not None,
+            min_filesize is not None,
+            watched_only,
+            unwatched_only,
+            watched_by_other_only,
+            username is not None,
+            tags is not None and len(tags) > 0,
+            exclude_tags is not None and len(exclude_tags) > 0,
+            on_streaming,
+            not_on_streaming,
+            not include_untagged,  # Excluding untagged is a filter
+        ]
+    )
+
+    if not has_filter:
+        console.print(
+            "[red]❌ Error: You must specify at least one filter to prevent accidental removal of all movies.[/red]\n"
+            "[yellow]Examples:[/yellow]\n"
+            "  • [cyan]--watched[/cyan] --days-watched 60\n"
+            "  • [cyan]--min-filesize[/cyan] 5GB\n"
+            "  • [cyan]--username[/cyan] alice\n"
+            "  • [cyan]--tag[/cyan] Kids\n"
+            "  • [cyan]--unwatched[/cyan]\n"
+            "\n"
+            "Use [cyan]prunarr movies list[/cyan] with the same filters to preview what will be removed."
+        )
+        raise typer.Exit(1)
 
     # Validate streaming filters using centralized function
     validate_streaming_filters(on_streaming, not_on_streaming, settings, logger)

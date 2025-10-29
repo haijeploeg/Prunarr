@@ -217,13 +217,13 @@ All tag filters work in remove commands:
 
 ```bash
 # Remove kids content after 2 weeks
-prunarr movies remove --tag "Kids" --days-watched 14
+prunarr movies remove --watched --tag "Kids" --days-watched 14
 
 # Remove 4K content after 90 days (keep longer due to quality)
-prunarr movies remove --tag "4K" --days-watched 90
+prunarr movies remove --watched --tag "4K" --days-watched 90
 
 # Remove content without favorite tag after 60 days
-prunarr movies remove --exclude-tag "Favorites" --days-watched 60
+prunarr movies remove --watched --exclude-tag "Favorites" --days-watched 60
 ```
 
 ---
@@ -342,10 +342,10 @@ prunarr movies list --tag "4K"
 prunarr movies list --username "alice" --tag "4K" --watched
 
 # 4. Remove with tag filters
-prunarr movies remove --tag "Kids" --days-watched 14 --dry-run
+prunarr movies remove --watched --tag "Kids" --days-watched 14 --dry-run
 
 # 5. Remove excluding favorites
-prunarr movies remove --exclude-tag "Favorites" --days-watched 60
+prunarr movies remove --watched --exclude-tag "Favorites" --days-watched 60
 ```
 
 ---

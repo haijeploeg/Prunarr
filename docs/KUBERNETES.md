@@ -120,12 +120,12 @@ cronjobs:
   movies:
     enabled: true
     schedule: "0 2 * * *"  # 2 AM daily
-    command: ["movies", "remove", "--days-watched", "60", "--force"]
+    command: ["movies", "remove", "--watched", "--days-watched", "60", "--force"]
 
   series:
     enabled: true
     schedule: "0 3 * * *"  # 3 AM daily
-    command: ["series", "remove", "--days-watched", "60", "--force"]
+    command: ["series", "remove", "--watched", "--days-watched", "60", "--force"]
 
 persistence:
   enabled: true
@@ -333,7 +333,7 @@ kubectl create job --from=cronjob/prunarr-cache-refresh manual-cache-$(date +%s)
 kubectl exec -it deployment/prunarr -- prunarr movies list --limit 10
 
 # Dry run removal
-kubectl exec -it deployment/prunarr -- prunarr movies remove --days-watched 60 --dry-run
+kubectl exec -it deployment/prunarr -- prunarr movies remove --watched --days-watched 60 --dry-run
 
 # Cache status
 kubectl exec -it deployment/prunarr -- prunarr cache status

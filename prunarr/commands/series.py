@@ -242,8 +242,8 @@ def list_series(
 @app.command("remove")
 def remove_series(
     ctx: typer.Context,
-    days_watched: int = typer.Option(
-        60, "--days-watched", "-d", help="Minimum days since last watched before removal"
+    days_watched: Optional[int] = typer.Option(
+        None, "--days-watched", "-d", help="Minimum days since last watched before removal"
     ),
     removal_mode: str = typer.Option(
         "series", "--mode", "-m", help="Removal granularity: 'series' or 'season'"
@@ -254,10 +254,10 @@ def remove_series(
     ),
     season: Optional[int] = typer.Option(None, "--season", help="Filter by specific season number"),
     watched: bool = typer.Option(
-        True,
-        "--watched/--no-watched",
+        False,
+        "--watched",
         "-w",
-        help="Remove only fully watched series (default: True)",
+        help="Remove only fully watched series",
     ),
     partially_watched: bool = typer.Option(
         False, "--partially-watched", "-p", help="Remove only partially watched series"
@@ -308,10 +308,9 @@ def remove_series(
         • [cyan]season[/cyan] - Remove individual seasons when fully watched
 
     [bold yellow]Watch status filtering:[/bold yellow]
-        • [green]--watched[/green] - remove only fully watched series (default: True)
+        • [green]--watched[/green] - remove only fully watched series
         • [green]--partially-watched[/green] - remove only partially watched series
         • [green]--unwatched[/green] - remove only unwatched series
-        • [green]--no-watched[/green] - disable default watched-only filter
 
     [bold yellow]Safety Features:[/bold yellow]
         • [cyan]Confirmation prompts[/cyan] - Multiple confirmation steps
@@ -320,35 +319,35 @@ def remove_series(
         • [cyan]--add-to-exclusion[/cyan] - Add to Sonarr exclusion list to prevent re-adding
         • [cyan]User tag validation[/cyan] - Only removes content requested by users
         • [cyan]Watch status verification[/cyan] - Ensures content matches watch status filter
-        • [cyan]Defaults to only removing fully watched series[/cyan]
+        • [cyan]Requires at least one filter[/cyan] - Prevents accidental removal
 
     [bold yellow]Examples:[/bold yellow]
-        [dim]# Preview what would be removed (dry run)[/dim]
-        prunarr series remove [green]--dry-run[/green]
+        [dim]# Preview what would be removed (dry run - always test first!)[/dim]
+        prunarr series remove [green]--watched[/green] [green]--days-watched[/green] 60 [green]--dry-run[/green]
 
-        [dim]# Remove fully watched series after 30 days (default behavior)[/dim]
-        prunarr series remove [green]--days-watched[/green] 30
+        [dim]# Remove fully watched series after 60 days[/dim]
+        prunarr series remove [green]--watched[/green] [green]--days-watched[/green] 60
 
         [dim]# Remove partially watched series[/dim]
-        prunarr series remove [green]--partially-watched[/green]
+        prunarr series remove [green]--partially-watched[/green] [green]--days-watched[/green] 30
 
-        [dim]# Remove unwatched series[/dim]
+        [dim]# Remove unwatched series (cleanup failed downloads)[/dim]
         prunarr series remove [green]--unwatched[/green]
 
         [dim]# Remove individual seasons mode[/dim]
-        prunarr series remove [green]--mode[/green] season [green]--days-watched[/green] 45
+        prunarr series remove [green]--mode[/green] season [green]--watched[/green] [green]--days-watched[/green] 45
 
         [dim]# Remove specific user's content without confirmation[/dim]
-        prunarr series remove [green]--username[/green] \"john\" [green]--force[/green]
+        prunarr series remove [green]--username[/green] \"john\" [green]--watched[/green] [green]--days-watched[/green] 30 [green]--force[/green]
 
-        [dim]# Remove specific series seasons[/dim]
-        prunarr series remove [green]--series[/green] \"the office\" [green]--mode[/green] season
+        [dim]# Remove specific series by name[/dim]
+        prunarr series remove [green]--series[/green] \"the office\" [green]--watched[/green]
 
-        [dim]# Remove watched series available on streaming (you can stream them)[/dim]
-        prunarr series remove [green]--on-streaming[/green] [green]--days-watched[/green] 30
+        [dim]# Remove watched series available on streaming[/dim]
+        prunarr series remove [green]--watched[/green] [green]--on-streaming[/green] [green]--days-watched[/green] 30
 
-        [dim]# Remove watched series NOT on streaming (keep unique content longer)[/dim]
-        prunarr series remove [green]--not-on-streaming[/green] [green]--days-watched[/green] 180
+        [dim]# Remove watched series NOT on streaming[/dim]
+        prunarr series remove [green]--watched[/green] [green]--not-on-streaming[/green] [green]--days-watched[/green] 180
 
     [bold yellow]Note:[/bold yellow]
         This operation permanently deletes files from your system. Use [green]--dry-run[/green] first to preview changes.
@@ -364,6 +363,38 @@ def remove_series(
     debug: bool = context_obj["debug"]
 
     logger = get_logger("series", debug=debug, log_level=settings.log_level)
+
+    # Validate that at least one filter is specified (safety check)
+    has_filter = any(
+        [
+            days_watched is not None,
+            watched,
+            partially_watched,
+            unwatched,
+            username is not None,
+            series_name is not None,
+            season is not None,
+            tags is not None and len(tags) > 0,
+            exclude_tags is not None and len(exclude_tags) > 0,
+            on_streaming,
+            not_on_streaming,
+        ]
+    )
+
+    if not has_filter:
+        console.print(
+            "[red]❌ Error: You must specify at least one filter to prevent accidental removal of all series.[/red]\n"
+            "[yellow]Examples:[/yellow]\n"
+            "  • [cyan]--watched[/cyan] --days-watched 60\n"
+            "  • [cyan]--partially-watched[/cyan]\n"
+            "  • [cyan]--unwatched[/cyan]\n"
+            "  • [cyan]--username[/cyan] alice\n"
+            '  • [cyan]--series[/cyan] "breaking bad"\n'
+            "  • [cyan]--tag[/cyan] Kids\n"
+            "\n"
+            "Use [cyan]prunarr series list[/cyan] with the same filters to preview what will be removed."
+        )
+        raise typer.Exit(1)
 
     # Validate streaming filters using centralized function
     validate_streaming_filters(on_streaming, not_on_streaming, settings, logger)

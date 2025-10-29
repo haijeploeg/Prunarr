@@ -28,7 +28,7 @@ services:
       - TAUTULLI_URL=${TAUTULLI_URL:-https://tautulli.example.com}
 
       # Optional: User tag regex pattern
-      - USER_TAG_REGEX=${USER_TAG_REGEX:-^\\d+ - (.+)$$}
+      - USER_TAG_REGEX=${USER_TAG_REGEX:-^\d+ - (.+)$$}
 
       # Cache Configuration
       - CACHE_ENABLED=${CACHE_ENABLED:-true}

@@ -140,10 +140,10 @@ Add to your crontab (`crontab -e`):
 
 ```cron
 # Run movie cleanup daily at 2 AM
-0 2 * * * cd /path/to/prunarr && docker-compose run --rm prunarr movies remove --days-watched 60 --force
+0 2 * * * cd /path/to/prunarr && docker-compose run --rm prunarr movies remove --watched --days-watched 60 --force
 
 # Run series cleanup daily at 3 AM
-0 3 * * * cd /path/to/prunarr && docker-compose run --rm prunarr series remove --days-watched 60 --force
+0 3 * * * cd /path/to/prunarr && docker-compose run --rm prunarr series remove --watched --days-watched 60 --force
 ```
 
 **Option 2: Ofelia Scheduler (Docker-based)**
@@ -163,12 +163,12 @@ services:
       # Movie cleanup - daily at 2 AM
       ofelia.job-run.prunarr-movies.schedule: "0 0 2 * * *"
       ofelia.job-run.prunarr-movies.container: "prunarr"
-      ofelia.job-run.prunarr-movies.command: "movies remove --days-watched 60 --force"
+      ofelia.job-run.prunarr-movies.command: "movies remove --watched --days-watched 60 --force"
 
       # Series cleanup - daily at 3 AM
       ofelia.job-run.prunarr-series.schedule: "0 0 3 * * *"
       ofelia.job-run.prunarr-series.container: "prunarr"
-      ofelia.job-run.prunarr-series.command: "series remove --days-watched 60 --force"
+      ofelia.job-run.prunarr-series.command: "series remove --watched --days-watched 60 --force"
 ```
 
 ## Environment Variables
@@ -225,7 +225,7 @@ services:
 
 ```bash
 # See what would be removed without actually deleting
-docker-compose run --rm prunarr movies remove --days-watched 60 --dry-run
+docker-compose run --rm prunarr movies remove --watched --days-watched 60 --dry-run
 ```
 
 ### Filter by User
@@ -248,8 +248,8 @@ Run different cleanup tasks in parallel:
 
 ```bash
 # Movies and series cleanup simultaneously
-docker-compose run --rm -d prunarr movies remove --days-watched 60 --force
-docker-compose run --rm -d prunarr series remove --days-watched 60 --force
+docker-compose run --rm -d prunarr movies remove --watched --days-watched 60 --force
+docker-compose run --rm -d prunarr series remove --watched --days-watched 60 --force
 ```
 
 ## Troubleshooting

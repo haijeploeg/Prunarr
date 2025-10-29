@@ -22,11 +22,11 @@ mv config.example.yaml config.yaml
 # Edit config.yaml with your API keys
 
 # 3. Preview what would be removed
-prunarr --config config.yaml movies remove --dry-run
+prunarr --config config.yaml movies remove --watched --days-watched 60 --dry-run
 
-# 4. Remove watched content (60+ days old by default)
-prunarr --config config.yaml movies remove
-prunarr --config config.yaml series remove
+# 4. Remove watched content after 60 days
+prunarr --config config.yaml movies remove --watched --days-watched 60
+prunarr --config config.yaml series remove --watched --days-watched 60
 ```
 
 📖 **[Full Quick Start Guide →](docs/QUICK_START.md)**
@@ -74,8 +74,8 @@ prunarr movies remove --username "alice" --days-watched 30
 Control exactly how long to keep watched content:
 
 ```bash
-prunarr movies remove --days-watched 60   # Remove after 60 days
-prunarr series remove --days-watched 90   # Keep series longer
+prunarr movies remove --watched --days-watched 60   # Remove after 60 days
+prunarr series remove --watched --days-watched 90   # Keep series longer
 ```
 
 ### 📦 Size-Based Filtering
@@ -83,7 +83,7 @@ Target large files to free up space quickly:
 
 ```bash
 prunarr movies list --min-filesize "5GB" --sort-by filesize --desc
-prunarr movies remove --min-filesize "5GB" --days-watched 60
+prunarr movies remove --watched --min-filesize "5GB" --days-watched 60
 ```
 
 ### 🏷️ Tag-Based Organization
@@ -100,10 +100,10 @@ Check if content is available on your streaming services via JustWatch:
 
 ```bash
 # Remove watched movies available on streaming
-prunarr movies remove --on-streaming --days-watched 30
+prunarr movies remove --watched --on-streaming --days-watched 30
 
 # Keep unique content longer (not on streaming)
-prunarr movies remove --not-on-streaming --days-watched 180
+prunarr movies remove --watched --not-on-streaming --days-watched 180
 ```
 
 📖 **[Streaming Integration Guide →](docs/STREAMING.md)**
@@ -151,25 +151,25 @@ Beautiful, informative tables with:
 ### Weekly Cleanup Routine
 ```bash
 # Preview and remove watched content
-prunarr movies remove --days-watched 60 --dry-run
-prunarr movies remove --days-watched 60
-prunarr series remove --days-watched 90
+prunarr movies remove --watched --days-watched 60 --dry-run
+prunarr movies remove --watched --days-watched 60
+prunarr series remove --watched --days-watched 90
 ```
 
 ### Free Up Space Quickly
 ```bash
 # Target large files first
 prunarr movies list --min-filesize "10GB" --sort-by filesize --desc
-prunarr movies remove --min-filesize "5GB" --days-watched 30
+prunarr movies remove --watched --min-filesize "5GB" --days-watched 30
 ```
 
 ### Smart Streaming-Based Cleanup
 ```bash
 # Remove watched movies you can re-stream
-prunarr movies remove --on-streaming --days-watched 30
+prunarr movies remove --watched --on-streaming --days-watched 30
 
 # Keep unique content longer
-prunarr movies remove --not-on-streaming --days-watched 180
+prunarr movies remove --watched --not-on-streaming --days-watched 180
 ```
 
 ### Multi-User Management
@@ -178,14 +178,14 @@ prunarr movies remove --not-on-streaming --days-watched 180
 prunarr movies list --username "alice"
 
 # User-specific cleanup
-prunarr movies remove --username "bob" --days-watched 45
+prunarr movies remove --watched --username "bob" --days-watched 45
 ```
 
 ### Kids Content Fast Rotation
 ```bash
 # Quick cleanup of kids content
-prunarr movies remove --tag "Kids" --days-watched 14
-prunarr series remove --tag "Kids" --days-watched 14
+prunarr movies remove --watched --tag "Kids" --days-watched 14
+prunarr series remove --watched --tag "Kids" --days-watched 14
 ```
 
 📖 **[More Examples →](docs/QUICK_START.md#common-workflows)**
@@ -327,16 +327,16 @@ When users request content through Overseerr:
 
 **Movies:**
 ```bash
-prunarr movies list                      # List all movies
-prunarr movies remove --dry-run          # Preview removal
-prunarr movies remove --days-watched 60  # Remove watched movies
+prunarr movies list                               # List all movies
+prunarr movies remove --watched --dry-run         # Preview removal
+prunarr movies remove --watched --days-watched 60 # Remove watched movies
 ```
 
 **Series:**
 ```bash
-prunarr series list                      # List all series
-prunarr series get "Breaking Bad"        # Get detailed info
-prunarr series remove --days-watched 90  # Remove watched series
+prunarr series list                               # List all series
+prunarr series get "Breaking Bad"                 # Get detailed info
+prunarr series remove --watched --days-watched 90 # Remove watched series
 ```
 
 **History:**
