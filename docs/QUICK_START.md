@@ -39,11 +39,11 @@ prunarr --config config.yaml history list --limit 20
 **Always start with dry-run mode** to see what would be removed:
 
 ```bash
-# Preview movie removal (60+ days old by default)
-prunarr --config config.yaml movies remove --dry-run
+# Preview movie removal (watched movies 60+ days old)
+prunarr --config config.yaml movies remove --watched --days-watched 60 --dry-run
 
-# Preview series removal
-prunarr --config config.yaml series remove --dry-run
+# Preview series removal (watched series 60+ days old)
+prunarr --config config.yaml series remove --watched --days-watched 60 --dry-run
 ```
 
 Review the output carefully. The preview shows exactly what will be removed.
@@ -54,10 +54,10 @@ If you're happy with the preview, remove the `--dry-run` flag:
 
 ```bash
 # Remove watched movies (60+ days old)
-prunarr --config config.yaml movies remove
+prunarr --config config.yaml movies remove --watched --days-watched 60
 
 # Remove watched series (60+ days old)
-prunarr --config config.yaml series remove
+prunarr --config config.yaml series remove --watched --days-watched 60
 ```
 
 ---
@@ -81,7 +81,7 @@ prunarr --config config.yaml series get "The Office" --unwatched-only
 prunarr --config config.yaml movies list --username "alice"
 
 # Remove movies for a specific user
-prunarr --config config.yaml movies remove --username "alice" --days-watched 30
+prunarr --config config.yaml movies remove --watched --username "alice" --days-watched 30
 ```
 
 ### Target Large Files
@@ -91,7 +91,7 @@ prunarr --config config.yaml movies remove --username "alice" --days-watched 30
 prunarr --config config.yaml movies list --min-filesize "5GB" --sort-by filesize --desc
 
 # Remove large watched movies
-prunarr --config config.yaml movies remove --min-filesize "5GB" --days-watched 60
+prunarr --config config.yaml movies remove --watched --min-filesize "5GB" --days-watched 60
 ```
 
 ### Filter by Tags
@@ -101,7 +101,7 @@ prunarr --config config.yaml movies remove --min-filesize "5GB" --days-watched 6
 prunarr --config config.yaml movies list --tag "4K"
 
 # Remove kids content after 2 weeks
-prunarr --config config.yaml movies remove --tag "Kids" --days-watched 14
+prunarr --config config.yaml movies remove --watched --tag "Kids" --days-watched 14
 ```
 
 ---
@@ -137,10 +137,10 @@ Before running any remove command for the first time:
 
 ```bash
 # ALWAYS preview first
-prunarr movies remove --days-watched 90 --dry-run
+prunarr movies remove --watched --days-watched 90 --dry-run
 
 # Then run for real if happy
-prunarr movies remove --days-watched 90
+prunarr movies remove --watched --days-watched 90
 ```
 
 ### 4. Use JSON Output for Scripts
@@ -173,12 +173,12 @@ prunarr --debug movies list
 CONFIG="/path/to/config.yaml"
 
 # Preview what would be removed
-prunarr --config $CONFIG movies remove --days-watched 60 --dry-run
-prunarr --config $CONFIG series remove --days-watched 90 --dry-run
+prunarr --config $CONFIG movies remove --watched --days-watched 60 --dry-run
+prunarr --config $CONFIG series remove --watched --days-watched 90 --dry-run
 
 # If happy, uncomment to run:
-# prunarr --config $CONFIG movies remove --days-watched 60
-# prunarr --config $CONFIG series remove --days-watched 90
+# prunarr --config $CONFIG movies remove --watched --days-watched 60
+# prunarr --config $CONFIG series remove --watched --days-watched 90
 ```
 
 ### Free Up Space Quickly
@@ -186,7 +186,7 @@ prunarr --config $CONFIG series remove --days-watched 90 --dry-run
 ```bash
 # Target large files first
 prunarr movies list --min-filesize "10GB" --sort-by filesize --desc --limit 20
-prunarr movies remove --min-filesize "5GB" --days-watched 30 --dry-run
+prunarr movies remove --watched --min-filesize "5GB" --days-watched 30 --dry-run
 ```
 
 ### Smart Streaming-Based Cleanup
@@ -195,10 +195,10 @@ If you have streaming providers configured:
 
 ```bash
 # Remove watched movies available on streaming
-prunarr movies remove --on-streaming --days-watched 30
+prunarr movies remove --watched --on-streaming --days-watched 30
 
 # Keep unique content longer
-prunarr movies remove --not-on-streaming --days-watched 180
+prunarr movies remove --watched --not-on-streaming --days-watched 180
 ```
 
 ---

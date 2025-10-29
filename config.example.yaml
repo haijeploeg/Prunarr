@@ -68,10 +68,10 @@ cache_ttl_streaming: 86400            # Streaming availability cache (default: 2
 # - starz: Starz                        - crunchyroll: Crunchyroll
 
 # Note: PrunArr uses command-line parameters for operational settings
-# The --days-watched parameter controls retention periods
+# You must explicitly specify filters for remove operations
 # Examples:
-#   prunarr movies remove --days-watched 60    # Remove movies watched 60+ days ago
-#   prunarr series remove --days-watched 90    # Remove series watched 90+ days ago
+#   prunarr movies remove --watched --days-watched 60 --force  # Remove movies watched 60+ days ago
+#   prunarr series remove --watched --days-watched 90 --force  # Remove series watched 90+ days ago
 #
 # Cache Management:
 #   prunarr cache init       # Quick init - cache movies, series, history, tags

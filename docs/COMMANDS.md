@@ -92,29 +92,32 @@ prunarr movies remove [OPTIONS]
 
 ```bash
 # ALWAYS test with dry-run first!
-prunarr movies remove --dry-run
+prunarr movies remove --watched --days-watched 60 --dry-run
 
-# Basic removal (60+ days old by default)
-prunarr movies remove
+# Basic removal (explicitly specify watched movies older than 60 days)
+prunarr movies remove --watched --days-watched 60
 
 # Custom retention period
-prunarr movies remove --days-watched 90
+prunarr movies remove --watched --days-watched 90
 
 # All the list filters work here too
-prunarr movies remove --username "john" --days-watched 30
-prunarr movies remove --min-filesize "5GB" --days-watched 60
-prunarr movies remove --tag "Kids" --days-watched 14
-prunarr movies remove --on-streaming --days-watched 30
+prunarr movies remove --watched --username "john" --days-watched 30
+prunarr movies remove --watched --min-filesize "5GB" --days-watched 60
+prunarr movies remove --watched --tag "Kids" --days-watched 14
+prunarr movies remove --watched --on-streaming --days-watched 30
 
 # Skip confirmations (for automation - use carefully!)
-prunarr movies remove --force
+prunarr movies remove --watched --days-watched 60 --force
 ```
 
 **Options:**
 - `--dry-run` - Preview what would be removed without deleting
-- `--days-watched` / `-d` - Remove movies watched N+ days ago (default: 60)
+- `--days-watched` / `-d` - Remove movies watched N+ days ago
+- `--watched` / `-w` - Remove only watched movies
+- `--unwatched` - Remove only unwatched movies
 - `--force` / `-f` - Skip confirmation prompts
 - All filtering options from `movies list` command
+- **Note:** At least one filter is required (--watched, --days-watched, --min-filesize, --tag, etc.)
 
 ---
 
@@ -232,31 +235,35 @@ prunarr series remove [OPTIONS]
 
 ```bash
 # ALWAYS test with dry-run first!
-prunarr series remove --dry-run
+prunarr series remove --watched --days-watched 60 --dry-run
 
-# Basic removal (60+ days old by default)
-prunarr series remove
+# Basic removal (explicitly specify watched series older than 60 days)
+prunarr series remove --watched --days-watched 60
 
 # Custom retention period
-prunarr series remove --days-watched 90
+prunarr series remove --watched --days-watched 90
 
 # User-specific removal
-prunarr series remove --username "alice"
+prunarr series remove --watched --username "alice" --days-watched 30
 
 # Filter by series name
-prunarr series remove --series "completed show"
+prunarr series remove --watched --series "completed show" --days-watched 60
 
 # Filter by tags
-prunarr series remove --tag "Kids" --days-watched 14
+prunarr series remove --watched --tag "Kids" --days-watched 14
 
 # Skip confirmations
-prunarr series remove --yes
+prunarr series remove --watched --days-watched 60 --force
 ```
 
 **Options:**
 - `--dry-run` - Preview what would be removed without deleting
-- `--days-watched` / `-d` - Remove series watched N+ days ago (default: 60)
-- `--yes` / `-y` - Skip confirmation prompts
+- `--days-watched` / `-d` - Remove series watched N+ days ago
+- `--watched` / `-w` - Remove only fully watched series
+- `--partially-watched` - Remove only partially watched series
+- `--unwatched` - Remove only unwatched series
+- `--force` / `-f` - Skip confirmation prompts
+- **Note:** At least one filter is required (--watched, --days-watched, --series, --tag, etc.)
 - All filtering options from `series list` command
 
 ---
