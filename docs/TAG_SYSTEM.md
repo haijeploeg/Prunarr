@@ -63,7 +63,7 @@ That's it! Now when users request movies or shows through Overseerr:
 ### Benefits
 
 - ✅ No manual tag management needed
-- ✅ Perfect for multi-user Plex/Jellyfin servers
+- ✅ Perfect for multi-user Plex servers
 - ✅ Ensures users only affect their own requested content
 - ✅ Works automatically for all new requests
 - ✅ Integrates seamlessly with PrunArr's default configuration

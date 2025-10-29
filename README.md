@@ -4,7 +4,7 @@
 
 # PrunArr
 
-**Automatically clean up your Radarr and Sonarr libraries based on what you've actually watched in Plex/Jellyfin (via Tautulli).**
+**Automatically clean up your Radarr and Sonarr libraries based on what you've actually watched in Plex (via Tautulli).**
 
 Stop manually managing your media library. PrunArr removes watched content after a configurable period, checks streaming availability, and gives you complete control over what stays and what goes.
 
@@ -52,7 +52,7 @@ PrunArr automates media cleanup by:
 
 **Perfect for:**
 - People with limited storage space
-- Multi-user Plex/Jellyfin servers
+- Multi-user Plex servers
 - Users of Overseerr request management
 - Anyone tired of manual library cleanup
 - Users who want to prioritize unique content over streamable content
@@ -196,7 +196,9 @@ prunarr series remove --watched --tag "Kids" --days-watched 14
 
 - **Python 3.9 or higher**
 - **Radarr** (for movies) and/or **Sonarr** (for TV shows)
-- **Tautulli** (for watch history tracking)
+- **Tautulli** (for Plex watch history tracking - currently Plex only)
+
+> **Note:** PrunArr currently supports Plex via Tautulli. Jellyfin/Emby support is planned for future releases.
 
 ---
 
@@ -416,6 +418,6 @@ Apache-2.0 License - See [LICENSE](LICENSE) file for details.
 
 ---
 
-**Made with ❤️ for the Plex/Jellyfin community**
+**Made with ❤️ for the Plex community**
 
-*PrunArr is not affiliated with Radarr, Sonarr, Tautulli, Overseerr, Plex, or Jellyfin.*
+*PrunArr is not affiliated with Radarr, Sonarr, Tautulli, Overseerr, or Plex.*
