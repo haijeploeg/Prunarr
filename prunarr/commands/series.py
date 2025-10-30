@@ -305,12 +305,13 @@ def remove_series(
     """
     [bold cyan]Remove TV series with advanced filtering and confirmation.[/bold cyan]
 
-    Removes series or seasons based on watch status and other criteria.
+    Removes series, seasons, or episodes based on watch status and other criteria.
     Supports different removal granularities and multiple confirmation steps for safety.
 
     [bold yellow]Removal Modes:[/bold yellow]
         • [cyan]series[/cyan] - Remove entire series when all episodes are watched
         • [cyan]season[/cyan] - Remove individual seasons when fully watched
+        • [cyan]episode[/cyan] - Remove individual episodes as they are watched
 
     [bold yellow]Watch status filtering:[/bold yellow]
         • [green]--watched[/green] - remove only fully watched series
@@ -321,7 +322,9 @@ def remove_series(
         • [cyan]Confirmation prompts[/cyan] - Multiple confirmation steps
         • [cyan]Dry run mode[/cyan] - Preview what would be removed
         • [cyan]--delete-files[/cyan] - Control whether files are deleted (default: True)
-        • [cyan]--add-to-exclusion[/cyan] - Add to Sonarr exclusion list to prevent re-adding
+        • [cyan]--add-to-exclusion[/cyan] - Add to Sonarr exclusion list (series mode only)
+        • [cyan]--keep-monitored[/cyan] - Keep deleted episodes/seasons monitored for re-download
+        • [cyan]Multi-episode file safety[/cyan] - Only deletes when ALL episodes in file are watched
         • [cyan]User tag validation[/cyan] - Only removes content requested by users
         • [cyan]Watch status verification[/cyan] - Ensures content matches watch status filter
         • [cyan]Requires at least one filter[/cyan] - Prevents accidental removal
@@ -339,8 +342,14 @@ def remove_series(
         [dim]# Remove unwatched series (cleanup failed downloads)[/dim]
         prunarr series remove [green]--unwatched[/green]
 
-        [dim]# Remove individual seasons mode[/dim]
+        [dim]# Remove individual watched seasons[/dim]
         prunarr series remove [green]--mode[/green] season [green]--watched[/green] [green]--days-watched[/green] 45
+
+        [dim]# Remove individual watched episodes[/dim]
+        prunarr series remove [green]--mode[/green] episode [green]--watched[/green] [green]--days-watched[/green] 30
+
+        [dim]# Remove episodes but keep them monitored for re-download[/dim]
+        prunarr series remove [green]--mode[/green] episode [green]--watched[/green] [green]--days-watched[/green] 60 [green]--keep-monitored[/green]
 
         [dim]# Remove specific user's content without confirmation[/dim]
         prunarr series remove [green]--username[/green] \"john\" [green]--watched[/green] [green]--days-watched[/green] 30 [green]--force[/green]
