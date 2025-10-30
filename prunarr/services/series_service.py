@@ -287,21 +287,25 @@ class SeriesService:
         check_streaming: bool = False,
     ) -> List[Dict[str, Any]]:
         """
-        Get series that are ready for removal based on watch criteria.
+        Get series/seasons/episodes ready for removal based on watch criteria.
 
         Args:
-            days_watched: Minimum number of days since series was watched
-            removal_mode: "series" removes entire series, "season" removes individual seasons
+            days_watched: Minimum number of days since last watched
+            removal_mode: "series", "season", or "episode"
             check_streaming: Whether to check and cache streaming availability
 
         Returns:
-            List of series or seasons ready for removal
+            List of series, seasons, or episodes ready for removal
         """
         if self.logger:
             self.logger.debug(
                 f"get_series_ready_for_removal: days_watched={days_watched}, "
                 f"removal_mode={removal_mode}, check_streaming={check_streaming}"
             )
+
+        # Handle episode mode with dedicated method
+        if removal_mode == "episode":
+            return self.get_episodes_ready_for_removal(days_watched, check_streaming)
 
         series_with_status = self.get_series_with_watch_status(
             include_untagged=False, check_streaming=check_streaming
@@ -343,6 +347,186 @@ class SeriesService:
             self.logger.debug(f"Found {len(items_to_remove)} items ready for removal")
 
         return items_to_remove
+
+    def _get_episode_watch_info(
+        self, series: Dict[str, Any], episode_key: str, user: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Get watch information for a specific episode.
+
+        Args:
+            series: Series data with episodes_watched information
+            episode_key: Episode key in format "S01E03"
+            user: Username to check watch status for
+
+        Returns:
+            Dict with days_since_watched and most_recent_watch, or None if not watched
+        """
+        episodes_watched = series.get("episodes_watched", {})
+        user_episodes = episodes_watched.get(user, {})
+        return user_episodes.get(episode_key)
+
+    def _check_all_episodes_watched(
+        self,
+        episodes_in_file: List[Dict[str, Any]],
+        series: Dict[str, Any],
+        user: str,
+        days_watched: int,
+    ) -> bool:
+        """
+        Check if all episodes in a multi-episode file are watched.
+
+        This ensures safety when deleting files containing multiple episodes.
+        Only returns True if ALL episodes meet the watch criteria.
+
+        Args:
+            episodes_in_file: List of episode objects in the file
+            series: Series data with watch status
+            user: Username to check
+            days_watched: Minimum days since watched
+
+        Returns:
+            True if all episodes are watched by user for days_watched+ days
+        """
+        from prunarr.utils import make_episode_key
+
+        for ep in episodes_in_file:
+            episode_key = make_episode_key(ep.get("seasonNumber"), ep.get("episodeNumber"))
+            watch_info = self._get_episode_watch_info(series, episode_key, user)
+
+            if not watch_info or watch_info["days_since_watched"] < days_watched:
+                return False
+
+        return True
+
+    def get_episodes_ready_for_removal(
+        self,
+        days_watched: int,
+        check_streaming: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """
+        Get individual episodes ready for removal.
+
+        Only includes episodes where:
+        - Episode is fully watched by the requester
+        - Episode was watched X+ days ago
+        - ALL episodes in the same file are also watched (multi-episode safety)
+
+        Args:
+            days_watched: Minimum days since last watched
+            check_streaming: Whether to check streaming availability
+
+        Returns:
+            List of episodes with metadata including:
+            - series_id, series_title, series_user
+            - episode_id, episode_file_id, episode_title
+            - season_number, episode_number, episode_key
+            - watch_status, days_since_watched, most_recent_watch
+            - file_size, streaming_available, tags
+        """
+        from prunarr.utils import make_episode_key
+
+        if self.logger:
+            self.logger.debug(
+                f"get_episodes_ready_for_removal: days_watched={days_watched}, "
+                f"check_streaming={check_streaming}"
+            )
+
+        series_with_status = self.get_series_with_watch_status(
+            include_untagged=False, check_streaming=check_streaming
+        )
+
+        episodes_to_remove = []
+
+        for series in series_with_status:
+            series_user = series.get("user")
+            if not series_user:
+                continue
+
+            series_id = series.get("id")
+            series_title = series.get("title")
+
+            # Get detailed episode information
+            episodes = self.sonarr.get_episodes(series_id=series_id)
+            episode_files = self.sonarr.get_episode_files(series_id=series_id)
+
+            # Create file_id -> episodes mapping
+            file_to_episodes = {}
+            for ep_file in episode_files:
+                file_id = ep_file["id"]
+                file_to_episodes[file_id] = []
+                # Get full episode objects for episodes in this file
+                for ep_in_file in ep_file.get("episodes", []):
+                    # Find the full episode object
+                    for full_ep in episodes:
+                        if full_ep["id"] == ep_in_file["id"]:
+                            file_to_episodes[file_id].append(full_ep)
+                            break
+
+            # Check each episode
+            for episode in episodes:
+                if not episode.get("hasFile"):
+                    continue
+
+                episode_file_id = episode.get("episodeFileId")
+                if not episode_file_id:
+                    continue
+
+                # Check if episode was watched by requester
+                episode_key = make_episode_key(
+                    episode.get("seasonNumber"), episode.get("episodeNumber")
+                )
+
+                # Get watch info from series data
+                watch_info = self._get_episode_watch_info(series, episode_key, series_user)
+
+                if not watch_info or watch_info["days_since_watched"] < days_watched:
+                    continue
+
+                # SAFETY: Check if all episodes in this file are watched
+                episodes_in_file = file_to_episodes.get(episode_file_id, [])
+                all_watched = self._check_all_episodes_watched(
+                    episodes_in_file, series, series_user, days_watched
+                )
+
+                if not all_watched:
+                    if self.logger:
+                        self.logger.debug(
+                            f"Skipping {series_title} {episode_key} - not all episodes in file watched"
+                        )
+                    continue  # Skip - not all episodes in file are watched
+
+                # Get file size from episode file
+                file_size = 0
+                for ep_file in episode_files:
+                    if ep_file["id"] == episode_file_id:
+                        file_size = ep_file.get("size", 0)
+                        break
+
+                # Add to removal list
+                episodes_to_remove.append(
+                    {
+                        "series_id": series_id,
+                        "series_title": series_title,
+                        "series_user": series_user,
+                        "episode_id": episode["id"],
+                        "episode_file_id": episode_file_id,
+                        "episode_title": episode.get("title"),
+                        "season_number": episode.get("seasonNumber"),
+                        "episode_number": episode.get("episodeNumber"),
+                        "episode_key": episode_key,
+                        "days_since_watched": watch_info["days_since_watched"],
+                        "most_recent_watch": watch_info["most_recent_watch"],
+                        "file_size": file_size,
+                        "streaming_available": series.get("streaming_available"),
+                        "tags": series.get("tags", []),
+                    }
+                )
+
+        if self.logger:
+            self.logger.debug(f"Found {len(episodes_to_remove)} episodes ready for removal")
+
+        return episodes_to_remove
 
     def find_series_by_identifier(self, identifier: str) -> List[Dict[str, Any]]:
         """

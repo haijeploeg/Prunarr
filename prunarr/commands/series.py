@@ -296,6 +296,11 @@ def remove_series(
         "--add-to-exclusion",
         help="Add removed series to Sonarr exclusion list (prevents re-adding)",
     ),
+    keep_monitored: bool = typer.Option(
+        False,
+        "--keep-monitored",
+        help="Keep deleted seasons/episodes monitored in Sonarr (allows re-download)",
+    ),
 ):
     """
     [bold cyan]Remove TV series with advanced filtering and confirmation.[/bold cyan]
@@ -353,8 +358,8 @@ def remove_series(
         This operation permanently deletes files from your system. Use [green]--dry-run[/green] first to preview changes.
     """
     # Validate removal mode
-    if removal_mode not in ["series", "season"]:
-        console.print("[red]❌ Error: --mode must be either 'series' or 'season'[/red]")
+    if removal_mode not in ["series", "season", "episode"]:
+        console.print("[red]❌ Error: --mode must be 'series', 'season', or 'episode'[/red]")
         raise typer.Exit(1)
 
     # Extract settings and debug flag from global context
@@ -472,7 +477,7 @@ def remove_series(
                 table.add_row(*format_series_table_row(item, include_streaming=need_streaming))
 
             console.print(table)
-        else:
+        elif removal_mode == "season":
             # Season mode - keep custom table for now (different structure with Season column)
             title = f"Seasons Ready for Removal ({len(items_to_remove)} items)"
             table = Table(title=title)
@@ -503,6 +508,36 @@ def remove_series(
                 )
 
             console.print(table)
+        else:  # episode mode
+            title = f"Episodes Ready for Removal ({len(items_to_remove)} items)"
+            table = Table(title=title)
+            table.add_column("Series", style="bright_white")
+            table.add_column("Episode", style="cyan")
+            table.add_column("Title", style="dim")
+            table.add_column("User", style="blue")
+            table.add_column("Size", style="yellow")
+            table.add_column("Last Watched", style="dim")
+            table.add_column("Days Ago", style="green")
+
+            for item in items_to_remove:
+                episode_display = (
+                    f"S{item.get('season_number', 0):02d}×E{item.get('episode_number', 0):02d}"
+                )
+                last_watched_str = format_date_or_default(
+                    item.get("most_recent_watch"), default="Never"
+                )
+
+                table.add_row(
+                    safe_get(item, "series_title"),
+                    episode_display,
+                    safe_get(item, "episode_title"),
+                    safe_get(item, "series_user"),
+                    format_file_size(item.get("file_size", 0)),
+                    last_watched_str,
+                    safe_str(item.get("days_since_watched")),
+                )
+
+            console.print(table)
 
         # Show summary information
         if dry_run:
@@ -510,9 +545,13 @@ def remove_series(
                 f"\n[bold cyan]Total {removal_mode}(s) to remove: {len(items_to_remove)}[/bold cyan]"
             )
             if delete_files:
-                total_size_bytes = sum(
-                    item.get("total_size_on_disk", 0) for item in items_to_remove
-                )
+                # For episode mode, use 'file_size', for series/season use 'total_size_on_disk'
+                if removal_mode == "episode":
+                    total_size_bytes = sum(item.get("file_size", 0) for item in items_to_remove)
+                else:
+                    total_size_bytes = sum(
+                        item.get("total_size_on_disk", 0) for item in items_to_remove
+                    )
                 total_size_formatted = format_file_size(total_size_bytes)
                 console.print(
                     f"[bold yellow]Total storage to be freed: {total_size_formatted}[/bold yellow]"
@@ -538,9 +577,13 @@ def remove_series(
             )
 
             if delete_files:
-                total_size_bytes = sum(
-                    item.get("total_size_on_disk", 0) for item in items_to_remove
-                )
+                # For episode mode, use 'file_size', for series/season use 'total_size_on_disk'
+                if removal_mode == "episode":
+                    total_size_bytes = sum(item.get("file_size", 0) for item in items_to_remove)
+                else:
+                    total_size_bytes = sum(
+                        item.get("total_size_on_disk", 0) for item in items_to_remove
+                    )
                 total_size_formatted = format_file_size(total_size_bytes)
                 console.print(
                     f"[bold red]⚠️  WARNING:[/bold red] This will permanently delete {len(items_to_remove)} {removal_mode}(s) and their files!"
@@ -609,7 +652,18 @@ def remove_series(
                 series_id = item.get("id")
                 title = item.get("title", "Unknown")
 
-                progress.update(task, description=f"Removing: {title}")
+                if removal_mode == "series":
+                    progress.update(task, description=f"Removing: {title}")
+                elif removal_mode == "season":
+                    season_number = item.get("season_number")
+                    progress.update(task, description=f"Removing: {title} S{season_number:02d}")
+                else:  # episode mode
+                    season_number = item.get("season_number")
+                    episode_number = item.get("episode_number")
+                    progress.update(
+                        task,
+                        description=f"Removing: {title} S{season_number:02d}×E{episode_number:02d}",
+                    )
 
                 try:
                     if removal_mode == "series":
@@ -623,13 +677,42 @@ def remove_series(
                         else:
                             logger.error(f"Failed to remove series: {title} (ID: {series_id})")
                             failed_count += 1
-                    else:  # season mode
-                        # Note: Sonarr doesn't have direct season deletion, this would need custom implementation
-                        # For now, we'll log that this feature needs implementation
-                        logger.warning(
-                            f"Season-level removal not yet implemented for: {title} Season {item.get('season_number')}"
+
+                    elif removal_mode == "season":
+                        season_number = item.get("season_number")
+                        success = prunarr.sonarr.delete_season_files(
+                            series_id, season_number, unmonitor=not keep_monitored
                         )
-                        failed_count += 1
+                        if success:
+                            if debug:
+                                logger.info(
+                                    f"Removed season: {title} S{season_number:02d} (Series ID: {series_id})"
+                                )
+                            removed_count += 1
+                        else:
+                            logger.error(f"Failed to remove season: {title} S{season_number:02d}")
+                            failed_count += 1
+
+                    else:  # episode mode
+                        episode_file_id = item.get("episode_file_id")
+                        episode_id = item.get("episode_id")
+                        season_number = item.get("season_number")
+                        episode_number = item.get("episode_number")
+
+                        success = prunarr.sonarr.delete_episode_file(episode_file_id)
+                        if success:
+                            if not keep_monitored:
+                                prunarr.sonarr.unmonitor_episodes([episode_id])
+                            if debug:
+                                logger.info(
+                                    f"Removed episode: {title} S{season_number:02d}×E{episode_number:02d} (File ID: {episode_file_id})"
+                                )
+                            removed_count += 1
+                        else:
+                            logger.error(
+                                f"Failed to remove episode: {title} S{season_number:02d}×E{episode_number:02d}"
+                            )
+                            failed_count += 1
 
                 except Exception as e:
                     logger.error(f"Error removing {title}: {str(e)}")

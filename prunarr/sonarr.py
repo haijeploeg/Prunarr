@@ -349,6 +349,190 @@ class SonarrAPI(BaseAPIClient):
             # Log the exception in production code, but return False for now
             return False
 
+    def delete_episode_file(self, episode_file_id: int) -> bool:
+        """
+        Delete individual episode file from Sonarr.
+
+        Uses DELETE /api/v3/episodefile/{id} endpoint to remove a specific
+        episode file from both Sonarr's database and disk storage.
+
+        Args:
+            episode_file_id: Unique episode file ID to delete
+
+        Returns:
+            True if deletion was successful, False otherwise
+
+        Examples:
+            Delete a single episode file:
+            >>> success = sonarr.delete_episode_file(12345)
+
+        Note:
+            This operation is irreversible. The file will be permanently
+            deleted from disk. Multi-episode files will delete all episodes
+            contained in that file.
+        """
+        try:
+            url = f"{self._base_url}/api/v3/episodefile/{episode_file_id}"
+            response = requests.delete(url, params={"apikey": self._api_key}, timeout=30)
+            return response.status_code in [200, 204]
+        except Exception as e:
+            self.logger.error(f"Failed to delete episode file {episode_file_id}: {e}")
+            return False
+
+    def unmonitor_episodes(self, episode_ids: List[int]) -> bool:
+        """
+        Unmonitor specific episodes in Sonarr.
+
+        Uses PUT /api/v3/episode/monitor endpoint to set multiple episodes
+        to unmonitored state, preventing them from being re-downloaded.
+
+        Args:
+            episode_ids: List of episode IDs to unmonitor
+
+        Returns:
+            True if successful, False otherwise
+
+        Examples:
+            Unmonitor multiple episodes:
+            >>> success = sonarr.unmonitor_episodes([101, 102, 103])
+
+        Note:
+            Episodes must exist in Sonarr. Invalid IDs will be ignored.
+            Unmonitored episodes will not be automatically downloaded.
+        """
+        if not episode_ids:
+            return True
+
+        try:
+            url = f"{self._base_url}/api/v3/episode/monitor"
+            response = requests.put(
+                url,
+                params={"apikey": self._api_key},
+                json={"episodeIds": episode_ids, "monitored": False},
+                timeout=30,
+            )
+            return response.status_code == 202
+        except Exception as e:
+            self.logger.error(f"Failed to unmonitor episodes: {e}")
+            return False
+
+    def unmonitor_season(self, series_id: int, season_number: int) -> bool:
+        """
+        Unmonitor all episodes in a specific season.
+
+        Retrieves all episodes for the specified season and sets them to
+        unmonitored state, preventing automatic downloads.
+
+        Args:
+            series_id: Unique Sonarr series identifier
+            season_number: Season number to unmonitor (0 for specials)
+
+        Returns:
+            True if successful, False otherwise
+
+        Examples:
+            Unmonitor season 1:
+            >>> success = sonarr.unmonitor_season(123, 1)
+
+            Unmonitor specials:
+            >>> success = sonarr.unmonitor_season(123, 0)
+
+        Note:
+            This affects all episodes in the season, regardless of their
+            current monitored state or whether they have files.
+        """
+        try:
+            # Get all episodes for the series
+            episodes = self.get_episodes(series_id=series_id)
+            episode_ids = [ep["id"] for ep in episodes if ep.get("seasonNumber") == season_number]
+
+            if not episode_ids:
+                self.logger.warning(
+                    f"No episodes found for series {series_id} season {season_number}"
+                )
+                return True
+
+            return self.unmonitor_episodes(episode_ids)
+        except Exception as e:
+            self.logger.error(
+                f"Failed to unmonitor season {season_number} of series {series_id}: {e}"
+            )
+            return False
+
+    def delete_season_files(
+        self, series_id: int, season_number: int, unmonitor: bool = True
+    ) -> bool:
+        """
+        Delete all episode files for a specific season.
+
+        Removes all episode files belonging to the specified season from both
+        Sonarr's database and disk storage. Optionally unmonitors the season
+        to prevent re-downloading.
+
+        Args:
+            series_id: Unique Sonarr series identifier
+            season_number: Season number to delete (0 for specials)
+            unmonitor: Whether to unmonitor the season after deletion (default: True)
+
+        Returns:
+            True if all files deleted successfully, False if any deletion failed
+
+        Examples:
+            Delete season 1 and unmonitor:
+            >>> success = sonarr.delete_season_files(123, 1)
+
+            Delete season 2 but keep monitored:
+            >>> success = sonarr.delete_season_files(123, 2, unmonitor=False)
+
+        Note:
+            This operation is irreversible. All files for the season will be
+            permanently deleted from disk. Multi-episode files spanning multiple
+            seasons will only be deleted if all contained episodes are in the
+            target season.
+        """
+        try:
+            # Get episode files for this series
+            episode_files = self.get_episode_files(series_id=series_id)
+
+            # Filter to files containing episodes from this season only
+            season_file_ids = set()
+            for ep_file in episode_files:
+                # Check if ALL episodes in this file belong to the target season
+                episodes_in_file = ep_file.get("episodes", [])
+                if not episodes_in_file:
+                    continue
+
+                all_in_season = all(
+                    ep.get("seasonNumber") == season_number for ep in episodes_in_file
+                )
+
+                if all_in_season:
+                    season_file_ids.add(ep_file["id"])
+
+            if not season_file_ids:
+                self.logger.warning(
+                    f"No episode files found for series {series_id} season {season_number}"
+                )
+                return True
+
+            # Delete each unique file
+            all_success = True
+            for file_id in season_file_ids:
+                if not self.delete_episode_file(file_id):
+                    all_success = False
+                    self.logger.error(f"Failed to delete episode file {file_id}")
+
+            # Unmonitor season if requested and deletions were successful
+            if unmonitor and all_success:
+                self.unmonitor_season(series_id, season_number)
+
+            return all_success
+        except Exception as e:
+            self.logger.error(
+                f"Failed to delete season {season_number} files for series {series_id}: {e}"
+            )
+            return False
+
     def get_season_info(self, series_id: int) -> List[Dict[str, Any]]:
         """
         Retrieve comprehensive season information for a specific TV series.
