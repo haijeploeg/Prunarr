@@ -246,7 +246,7 @@ def remove_series(
         None, "--days-watched", "-d", help="Minimum days since last watched before removal"
     ),
     removal_mode: str = typer.Option(
-        "series", "--mode", "-m", help="Removal granularity: 'series' or 'season'"
+        "series", "--mode", "-m", help="Removal granularity: 'series', 'season', or 'episode'"
     ),
     username: Optional[str] = typer.Option(None, "--username", "-u", help="Filter by username"),
     series_name: Optional[str] = typer.Option(
